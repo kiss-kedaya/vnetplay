@@ -7,6 +7,7 @@ import {
   type DesktopCommandResult,
 } from "../../lib/desktop/bridge";
 import type { UserProfile } from "../../lib/profile/userProfile";
+import type { ConnectionContext } from "../../lib/runtime/connectionContext";
 import type { AppSettings } from "../../lib/settings/appSettings";
 
 const fallbackStatus: NetworkStatus = {
@@ -26,9 +27,11 @@ const idleResult: DesktopCommandResult = {
 type NetworkPageProps = {
   profile: UserProfile;
   settings: AppSettings;
+  connectionContext: ConnectionContext;
+  onUpdateConnectionContext: (context: ConnectionContext) => void;
 };
 
-export function NetworkPage({ profile, settings }: NetworkPageProps) {
+export function NetworkPage({ profile, settings, connectionContext, onUpdateConnectionContext }: NetworkPageProps) {
   const [status, setStatus] = useState<NetworkStatus>(fallbackStatus);
   const [commandResult, setCommandResult] = useState<DesktopCommandResult>(idleResult);
   const autoConnectTriggeredRef = useRef(false);
@@ -43,9 +46,50 @@ export function NetworkPage({ profile, settings }: NetworkPageProps) {
       username: profile.username,
     });
 
+    const detail = trigger === "auto" ? `auto-connect: ${result.detail}` : result.detail;
     setCommandResult({
       ...result,
-      detail: trigger === "auto" ? `auto-connect: ${result.detail}` : result.detail,
+      detail,
+    });
+    onUpdateConnectionContext({
+      roomId: settings.defaultRoomName,
+      username: profile.username,
+      serverBaseUrl: settings.serverBaseUrl,
+      success: result.ok,
+      detail,
+      pid: result.pid ?? null,
+      source: trigger === "auto" ? "auto-start" : "manual-start",
+      updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+    });
+  }
+
+  async function handleStopNetwork() {
+    const result = await stopNetworkBridge();
+    setCommandResult(result);
+    onUpdateConnectionContext({
+      roomId: settings.defaultRoomName,
+      username: profile.username,
+      serverBaseUrl: settings.serverBaseUrl,
+      success: result.ok,
+      detail: result.detail,
+      pid: result.pid ?? null,
+      source: "stop",
+      updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+    });
+  }
+
+  async function handleInspectNetwork() {
+    const result = await inspectNetworkBridge();
+    setCommandResult(result);
+    onUpdateConnectionContext({
+      roomId: settings.defaultRoomName,
+      username: profile.username,
+      serverBaseUrl: settings.serverBaseUrl,
+      success: result.ok,
+      detail: result.detail,
+      pid: result.pid ?? null,
+      source: "inspect",
+      updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
     });
   }
 
@@ -73,10 +117,10 @@ export function NetworkPage({ profile, settings }: NetworkPageProps) {
         <button className="primary-button" type="button" onClick={() => handleStartNetwork("manual")}>
           启动网络
         </button>
-        <button className="ghost-button" type="button" onClick={() => stopNetworkBridge().then(setCommandResult)}>
+        <button className="ghost-button" type="button" onClick={handleStopNetwork}>
           停止网络
         </button>
-        <button className="ghost-button" type="button" onClick={() => inspectNetworkBridge().then(setCommandResult)}>
+        <button className="ghost-button" type="button" onClick={handleInspectNetwork}>
           检查命令
         </button>
       </div>
@@ -91,6 +135,11 @@ export function NetworkPage({ profile, settings }: NetworkPageProps) {
         <div className="command-log-label">桌面命令结果</div>
         <div className="command-log-detail">{commandResult.detail}</div>
         <div className="command-log-meta">状态: {commandResult.ok ? "success" : "error"} | PID: {commandResult.pid ?? "n/a"}</div>
+      </div>
+      <div className="card-subtle settings-block">
+        <div className="settings-label">最近一次连接记录</div>
+        <div className="settings-value">{connectionContext.roomId}</div>
+        <div className="settings-meta">来源：{connectionContext.source} · 时间：{connectionContext.updatedAt}</div>
       </div>
     </section>
   );

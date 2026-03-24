@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Topbar } from "./components/layout/Topbar";
 import { readSystemIdentityBridge } from "./lib/desktop/bridge";
+import { resolveConnectionContext, saveConnectionContext, type ConnectionContext } from "./lib/runtime/connectionContext";
 import { resolveAppSettings, saveAppSettings, type AppSettings } from "./lib/settings/appSettings";
 import { navItems } from "./lib/ui/nav";
 import { HomePage } from "./pages/home/HomePage";
@@ -15,9 +16,11 @@ import "./styles/index.css";
 type PageProps = {
   profile: UserProfile;
   settings: AppSettings;
+  connectionContext: ConnectionContext;
   onSaveUsername: (username: string) => void;
   onResetUsername: () => void;
   onSaveSettings: (input: AppSettings) => void;
+  onUpdateConnectionContext: (context: ConnectionContext) => void;
 };
 
 function renderPage(key: string, props: PageProps) {
@@ -25,14 +28,14 @@ function renderPage(key: string, props: PageProps) {
     case "rooms":
       return <RoomsPage profile={props.profile} settings={props.settings} />;
     case "network":
-      return <NetworkPage profile={props.profile} settings={props.settings} />;
+      return <NetworkPage profile={props.profile} settings={props.settings} connectionContext={props.connectionContext} onUpdateConnectionContext={props.onUpdateConnectionContext} />;
     case "diagnostics":
       return <DiagnosticsPage />;
     case "settings":
       return <SettingsPage profile={props.profile} settings={props.settings} onSaveUsername={props.onSaveUsername} onResetUsername={props.onResetUsername} onSaveSettings={props.onSaveSettings} />;
     case "home":
     default:
-      return <HomePage profile={props.profile} settings={props.settings} />;
+      return <HomePage profile={props.profile} settings={props.settings} connectionContext={props.connectionContext} onUpdateConnectionContext={props.onUpdateConnectionContext} />;
   }
 }
 
@@ -44,12 +47,14 @@ export function App() {
     source: "system",
   });
   const [settings, setSettings] = useState<AppSettings>(resolveAppSettings());
+  const [connectionContext, setConnectionContext] = useState<ConnectionContext>(resolveConnectionContext());
 
   useEffect(() => {
     readSystemIdentityBridge().then((identity) => {
       setProfile(resolveUserProfile(identity.systemUsername));
     });
     setSettings(resolveAppSettings());
+    setConnectionContext(resolveConnectionContext());
   }, []);
 
   const activeItem = useMemo(() => navItems.find((item) => item.key === activeKey) ?? navItems[0], [activeKey]);
@@ -71,6 +76,10 @@ export function App() {
     setSettings(saveAppSettings(input));
   }
 
+  function handleUpdateConnectionContext(context: ConnectionContext) {
+    setConnectionContext(saveConnectionContext(context));
+  }
+
   return (
     <div className="app-shell">
       <Sidebar items={navItems} activeKey={activeKey} onSelect={setActiveKey} />
@@ -79,9 +88,11 @@ export function App() {
         {renderPage(activeKey, {
           profile,
           settings,
+          connectionContext,
           onSaveUsername: handleSaveUsername,
           onResetUsername: handleResetUsername,
           onSaveSettings: handleSaveSettings,
+          onUpdateConnectionContext: handleUpdateConnectionContext,
         })}
       </main>
     </div>

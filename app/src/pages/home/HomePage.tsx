@@ -4,15 +4,18 @@ import { StatusPill } from "../../components/status/StatusPill";
 import { fetchDashboardSummary, type DashboardSummary } from "../../lib/api/dashboard";
 import { createRoom, joinRoom } from "../../lib/api/rooms";
 import type { UserProfile } from "../../lib/profile/userProfile";
+import type { ConnectionContext } from "../../lib/runtime/connectionContext";
 import type { AppSettings } from "../../lib/settings/appSettings";
 import { defaultDashboardSummary } from "../../features/network/networkSummary";
 
 type HomePageProps = {
   profile: UserProfile;
   settings: AppSettings;
+  connectionContext: ConnectionContext;
+  onUpdateConnectionContext: (context: ConnectionContext) => void;
 };
 
-export function HomePage({ profile, settings }: HomePageProps) {
+export function HomePage({ profile, settings, connectionContext, onUpdateConnectionContext }: HomePageProps) {
   const [summary, setSummary] = useState<DashboardSummary>(defaultDashboardSummary);
   const [feedback, setFeedback] = useState("可以直接快速创建默认房间，或快速加入当前活跃房间。");
 
@@ -35,9 +38,31 @@ export function HomePage({ profile, settings }: HomePageProps) {
         mode: "LAN Overlay",
       });
       await refreshSummary();
-      setFeedback(`已快速创建 ${room.roomId}，当前玩家 ${profile.username} 已进入房间。`);
+      const detail = `已快速创建 ${room.roomId}，当前玩家 ${profile.username} 已进入房间。`;
+      setFeedback(detail);
+      onUpdateConnectionContext({
+        roomId: room.roomId,
+        username: profile.username,
+        serverBaseUrl: settings.serverBaseUrl,
+        success: true,
+        detail,
+        pid: null,
+        source: "manual-start",
+        updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+      });
     } catch {
-      setFeedback(`快速创建失败，请检查服务端 ${settings.serverBaseUrl}，或确认默认房间名 ${settings.defaultRoomName} 未重复。`);
+      const detail = `快速创建失败，请检查服务端 ${settings.serverBaseUrl}，或确认默认房间名 ${settings.defaultRoomName} 未重复。`;
+      setFeedback(detail);
+      onUpdateConnectionContext({
+        roomId: settings.defaultRoomName,
+        username: profile.username,
+        serverBaseUrl: settings.serverBaseUrl,
+        success: false,
+        detail,
+        pid: null,
+        source: "manual-start",
+        updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+      });
     }
   }
 
@@ -48,9 +73,31 @@ export function HomePage({ profile, settings }: HomePageProps) {
         username: profile.username,
       });
       await refreshSummary();
-      setFeedback(`已快速加入 ${room.roomId}，当前成员 ${room.participants.join(" / ")}。`);
+      const detail = `已快速加入 ${room.roomId}，当前成员 ${room.participants.join(" / ")}。`;
+      setFeedback(detail);
+      onUpdateConnectionContext({
+        roomId: room.roomId,
+        username: profile.username,
+        serverBaseUrl: settings.serverBaseUrl,
+        success: true,
+        detail,
+        pid: null,
+        source: "manual-start",
+        updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+      });
     } catch {
-      setFeedback(`快速加入失败，请确认活跃房间 ${summary.activeRoom} 存在且服务端 ${settings.serverBaseUrl} 可访问。`);
+      const detail = `快速加入失败，请确认活跃房间 ${summary.activeRoom} 存在且服务端 ${settings.serverBaseUrl} 可访问。`;
+      setFeedback(detail);
+      onUpdateConnectionContext({
+        roomId: summary.activeRoom,
+        username: profile.username,
+        serverBaseUrl: settings.serverBaseUrl,
+        success: false,
+        detail,
+        pid: null,
+        source: "manual-start",
+        updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+      });
     }
   }
 
@@ -83,6 +130,26 @@ export function HomePage({ profile, settings }: HomePageProps) {
         <div className="command-log card-subtle">
           <div className="command-log-label">快速操作结果</div>
           <div className="command-log-detail">{feedback}</div>
+        </div>
+      </section>
+
+      <section className="card page-card quick-actions-card">
+        <div className="section-header">
+          <h2>最近一次连接上下文</h2>
+          <p>收口展示最近一次快速加入 / 快速创建 / 网络启动的执行结果，方便看当前状态。</p>
+        </div>
+        <div className="key-value-grid">
+          <div><strong>最近房间</strong><span>{connectionContext.roomId}</span></div>
+          <div><strong>最近用户</strong><span>{connectionContext.username}</span></div>
+          <div><strong>服务端</strong><span>{connectionContext.serverBaseUrl}</span></div>
+          <div><strong>来源</strong><span>{connectionContext.source}</span></div>
+          <div><strong>时间</strong><span>{connectionContext.updatedAt}</span></div>
+          <div><strong>状态</strong><span>{connectionContext.success ? "success" : "error"}</span></div>
+        </div>
+        <div className="command-log card-subtle">
+          <div className="command-log-label">最近结果</div>
+          <div className="command-log-detail">{connectionContext.detail}</div>
+          <div className="command-log-meta">PID: {connectionContext.pid ?? "n/a"}</div>
         </div>
       </section>
     </div>

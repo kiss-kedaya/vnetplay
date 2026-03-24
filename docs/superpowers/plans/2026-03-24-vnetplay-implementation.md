@@ -176,4 +176,6 @@
 - [x] Desktop Tauri command/state layer now tracks active room and current username for network startup and command inspection.
 - [x] Settings page now supports an auto-connect-on-launch toggle for the network page.
 - [x] Network page now shows a startup context preview card and can auto-start the network flow once per page load when enabled.
+- [x] Frontend now persists the latest connection context and reuses it across the home and network pages.
+- [x] Home page now shows the latest connection context and recent command result summary.
 - [ ] Next pass: replace remaining browser bridge fallbacks with wider real invoke usage and continue turning the shell into an end-to-end usable LAN client.
