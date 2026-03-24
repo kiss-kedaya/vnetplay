@@ -31,6 +31,7 @@ struct NetworkStatus {
     latency: String,
     community: String,
     supernode: String,
+    secret_masked: String,
 }
 
 #[derive(Serialize)]
@@ -99,6 +100,7 @@ async fn network_status(State(state): State<AppState>) -> Json<NetworkStatus> {
         latency: format!("{} ms", latency_ms),
         community: state.profile.community.clone(),
         supernode: state.profile.supernode.clone(),
+        secret_masked: state.profile.secret_masked.clone(),
     })
 }
 
@@ -108,6 +110,8 @@ async fn node_heartbeat(
 ) -> Json<HeartbeatResponse> {
     let mut heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
     heartbeats.insert(payload.node_id.clone(), payload.clone());
+    drop(heartbeats);
+    state.persist();
 
     Json(HeartbeatResponse {
         accepted: true,

@@ -5,6 +5,7 @@ mod config;
 mod models;
 mod nodes;
 mod rooms;
+mod storage;
 
 use api::router::build_router;
 use config::AppConfig;

@@ -157,4 +157,6 @@
 - [x] Desktop Rust shell compiles with n2n-related module boundaries in place.
 - [x] Frontend rooms and network pages now fetch real server-backed data.
 - [x] Server room list, network status, dashboard summary, and heartbeat ingestion now share one in-memory state source.
-- [ ] Next pass: persist room state to storage, execute real n2n binaries, and wire Tauri commands to the frontend.
+- [x] Server state now supports local JSON persistence for rooms and heartbeat snapshots.
+- [x] Desktop command layer now has callable start and inspect boundaries instead of a single placeholder summary.
+- [ ] Next pass: execute real n2n binaries, connect desktop commands to Tauri invoke flow, and let the frontend drive those commands.
