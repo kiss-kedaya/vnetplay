@@ -161,7 +161,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
       <InfoCard title="当前玩家" value={profile.username} detail={`启动时默认读取系统用户名 ${profile.systemUsername}，可在设置页随时修改。`} footer={<StatusPill tone="online" text={profile.source === "system" ? "系统默认" : "已自定义"} />} />
       <InfoCard title="虚拟 IP" value={summary.overlayIp} detail="进入房间后自动分配，适合 LAN 游戏直连。" footer={<StatusPill tone="online" text="在线" />} />
       <InfoCard title="中继路径" value={summary.relay} detail={`当前房间 ${summary.activeRoom}，已连接 ${summary.roomMembers} 个成员。`} footer={<StatusPill tone="idle" text="智能选路" />} />
-      <InfoCard title="链路质量" value={summary.latency} detail={`当前丢包 ${summary.packetLoss}，支持 ${summary.supportedGames.join(" / ")}。`} footer={<StatusPill tone="warning" text="可优化" />} />
+      <InfoCard title="运行态 Telemetry" value={serverStatus.recentAction.action} detail={`最近时间 ${serverStatus.recentAction.updatedAt} · Source ${serverStatus.recentAction.source} · PID ${serverStatus.recentAction.pid ?? "n/a"}`} footer={<StatusPill tone={serverStatus.recentAction.success ? "online" : "warning"} text={serverStatus.recentAction.success ? "已同步" : "待排查"} />} />
 
       <section className="card page-card quick-actions-card">
         <div className="section-header">
