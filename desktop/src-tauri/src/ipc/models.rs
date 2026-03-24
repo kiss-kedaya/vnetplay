@@ -16,4 +16,6 @@ pub struct SystemIdentityResponse {
 pub struct StartNetworkRequest {
     pub room_id: String,
     pub username: String,
+    pub community: String,
+    pub supernode: String,
 }

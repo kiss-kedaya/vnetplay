@@ -11,6 +11,8 @@ export type DesktopIdentityResult = {
 export type StartNetworkPayload = {
   roomId: string;
   username: string;
+  community: string;
+  supernode: string;
 };
 
 declare global {
@@ -39,11 +41,14 @@ async function invokeOrFallback(command: string, payload?: Record<string, unknow
   }
 
   if (command === "start_network_command") {
-    const roomId = String(payload?.payload && typeof payload.payload === "object" && "roomId" in payload.payload ? (payload.payload as { roomId?: string }).roomId ?? "vnetplay-room" : "vnetplay-room");
-    const username = String(payload?.payload && typeof payload.payload === "object" && "username" in payload.payload ? (payload.payload as { username?: string }).username ?? "player" : "player");
+    const networkPayload = payload?.payload as Partial<StartNetworkPayload> | undefined;
+    const roomId = String(networkPayload?.roomId ?? "my-new-room");
+    const username = String(networkPayload?.username ?? "player");
+    const community = String(networkPayload?.community ?? "vnetplay-room");
+    const supernode = String(networkPayload?.supernode ?? "127.0.0.1:7777");
     return {
       ok: true,
-      detail: `fallback invoke: prepared to start n2n edge for user ${username} in room ${roomId}`,
+      detail: `fallback invoke: prepared to start n2n edge for user ${username} in room ${roomId} via ${community} -> ${supernode}`,
       pid: 43210,
     };
   }
@@ -76,6 +81,8 @@ export function startNetworkBridge(payload: StartNetworkPayload): Promise<Deskto
     payload: {
       roomId: payload.roomId,
       username: payload.username,
+      community: payload.community,
+      supernode: payload.supernode,
     },
   });
 }

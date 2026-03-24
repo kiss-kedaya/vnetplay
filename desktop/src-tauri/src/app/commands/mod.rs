@@ -17,7 +17,14 @@ pub fn start_network(state: &mut DesktopState, payload: StartNetworkRequest) -> 
     state.last_command = "start-network".to_string();
     state.active_room = payload.room_id.clone();
     state.current_username = payload.username.clone();
-    let outcome = start_edge(&state.active_room, &state.current_username);
+    state.current_community = payload.community.clone();
+    state.current_supernode = payload.supernode.clone();
+    let outcome = start_edge(
+        &state.active_room,
+        &state.current_username,
+        &state.current_community,
+        &state.current_supernode,
+    );
     state.last_pid = outcome.pid;
 
     CommandResponse {
@@ -54,7 +61,12 @@ pub fn stop_network(state: &mut DesktopState) -> CommandResponse {
 pub fn inspect_network(state: &DesktopState) -> CommandResponse {
     CommandResponse {
         ok: true,
-        detail: preview_edge_command(&state.active_room, &state.current_username),
+        detail: preview_edge_command(
+            &state.active_room,
+            &state.current_username,
+            &state.current_community,
+            &state.current_supernode,
+        ),
         pid: state.last_pid,
     }
 }

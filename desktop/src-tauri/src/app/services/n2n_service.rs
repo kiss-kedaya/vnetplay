@@ -7,29 +7,42 @@ pub struct CommandOutcome {
     pub pid: Option<u32>,
 }
 
-fn build_edge_command(room_id: &str) -> Command {
+fn build_edge_command(community: &str, supernode: &str) -> Command {
     let mut command = Command::new("n2n-edge");
-    command.arg("-c").arg(room_id).arg("-l").arg("127.0.0.1:7777");
+    command.arg("-c").arg(community).arg("-l").arg(supernode);
     command
 }
 
-pub fn preview_edge_command(room_id: &str, username: &str) -> String {
-    format!("user={} room={} {:?}", username, room_id, build_edge_command(room_id))
+pub fn preview_edge_command(room_id: &str, username: &str, community: &str, supernode: &str) -> String {
+    format!(
+        "user={} room={} community={} supernode={} {:?}",
+        username,
+        room_id,
+        community,
+        supernode,
+        build_edge_command(community, supernode)
+    )
 }
 
-pub fn start_edge(room_id: &str, username: &str) -> CommandOutcome {
-    let mut command = build_edge_command(room_id);
+pub fn start_edge(room_id: &str, username: &str, community: &str, supernode: &str) -> CommandOutcome {
+    let mut command = build_edge_command(community, supernode);
     command.stdout(Stdio::null()).stderr(Stdio::null());
 
     match command.spawn() {
         Ok(child) => CommandOutcome {
             ok: true,
-            detail: format!("n2n edge process started for user {} in room {}", username, room_id),
+            detail: format!(
+                "n2n edge process started for user {} in room {} via community {} -> {}",
+                username, room_id, community, supernode
+            ),
             pid: Some(child.id()),
         },
         Err(error) => CommandOutcome {
             ok: false,
-            detail: format!("failed to start n2n edge for user {} in room {}: {}", username, room_id, error),
+            detail: format!(
+                "failed to start n2n edge for user {} in room {} via community {} -> {}: {}",
+                username, room_id, community, supernode, error
+            ),
             pid: None,
         },
     }

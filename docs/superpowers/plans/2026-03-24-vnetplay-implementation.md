@@ -178,4 +178,6 @@
 - [x] Network page now shows a startup context preview card and can auto-start the network flow once per page load when enabled.
 - [x] Frontend now persists the latest connection context and reuses it across the home and network pages.
 - [x] Home page now shows the latest connection context and recent command result summary.
+- [x] Settings page now supports editing default community and supernode address.
+- [x] Desktop network startup payload now carries community and supernode into the Rust command/service layer.
 - [ ] Next pass: replace remaining browser bridge fallbacks with wider real invoke usage and continue turning the shell into an end-to-end usable LAN client.

@@ -14,6 +14,8 @@ export function SettingsPage({ profile, settings, onSaveUsername, onResetUsernam
   const [draftUsername, setDraftUsername] = useState(profile.username);
   const [serverBaseUrl, setServerBaseUrl] = useState(settings.serverBaseUrl);
   const [defaultRoomName, setDefaultRoomName] = useState(settings.defaultRoomName);
+  const [defaultCommunity, setDefaultCommunity] = useState(settings.defaultCommunity);
+  const [supernodeAddress, setSupernodeAddress] = useState(settings.supernodeAddress);
   const [autoConnectOnLaunch, setAutoConnectOnLaunch] = useState(settings.autoConnectOnLaunch);
 
   useEffect(() => {
@@ -23,14 +25,16 @@ export function SettingsPage({ profile, settings, onSaveUsername, onResetUsernam
   useEffect(() => {
     setServerBaseUrl(settings.serverBaseUrl);
     setDefaultRoomName(settings.defaultRoomName);
+    setDefaultCommunity(settings.defaultCommunity);
+    setSupernodeAddress(settings.supernodeAddress);
     setAutoConnectOnLaunch(settings.autoConnectOnLaunch);
-  }, [settings.serverBaseUrl, settings.defaultRoomName, settings.autoConnectOnLaunch]);
+  }, [settings.serverBaseUrl, settings.defaultRoomName, settings.defaultCommunity, settings.supernodeAddress, settings.autoConnectOnLaunch]);
 
   return (
     <section className="card page-card settings-page">
       <div className="section-header">
         <h2>基础设置</h2>
-        <p>软件启动时会自动读取当前系统用户名。你也可以在这里改成对外显示的玩家昵称，并配置服务端地址、默认房间名和自动连接策略。</p>
+        <p>软件启动时会自动读取当前系统用户名。你也可以在这里改成对外显示的玩家昵称，并配置服务端地址、房间、community、supernode 和自动连接策略。</p>
       </div>
 
       <div className="settings-grid">
@@ -58,12 +62,16 @@ export function SettingsPage({ profile, settings, onSaveUsername, onResetUsernam
         <div className="card-subtle settings-block">
           <label className="settings-label" htmlFor="default-room-name">默认房间名</label>
           <input id="default-room-name" className="settings-input" value={defaultRoomName} onChange={(event) => setDefaultRoomName(event.target.value)} placeholder="my-new-room" />
+          <label className="settings-label" htmlFor="default-community">默认 community</label>
+          <input id="default-community" className="settings-input" value={defaultCommunity} onChange={(event) => setDefaultCommunity(event.target.value)} placeholder="vnetplay-room" />
+          <label className="settings-label" htmlFor="supernode-address">Supernode 地址</label>
+          <input id="supernode-address" className="settings-input" value={supernodeAddress} onChange={(event) => setSupernodeAddress(event.target.value)} placeholder="127.0.0.1:7777" />
           <label className="settings-toggle" htmlFor="auto-connect-on-launch">
             <input id="auto-connect-on-launch" type="checkbox" checked={autoConnectOnLaunch} onChange={(event) => setAutoConnectOnLaunch(event.target.checked)} />
             <span>启动网络页时自动连接</span>
           </label>
           <div className="network-actions settings-actions">
-            <button className="primary-button" type="button" onClick={() => onSaveSettings({ serverBaseUrl, defaultRoomName, autoConnectOnLaunch })}>保存连接设置</button>
+            <button className="primary-button" type="button" onClick={() => onSaveSettings({ serverBaseUrl, defaultRoomName, defaultCommunity, supernodeAddress, autoConnectOnLaunch })}>保存连接设置</button>
           </div>
         </div>
       </div>

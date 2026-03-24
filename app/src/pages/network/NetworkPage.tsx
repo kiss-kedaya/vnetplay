@@ -44,6 +44,8 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     const result = await startNetworkBridge({
       roomId: settings.defaultRoomName,
       username: profile.username,
+      community: settings.defaultCommunity,
+      supernode: settings.supernodeAddress,
     });
 
     const detail = trigger === "auto" ? `auto-connect: ${result.detail}` : result.detail;
@@ -100,17 +102,18 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
 
     autoConnectTriggeredRef.current = true;
     handleStartNetwork("auto");
-  }, [settings.autoConnectOnLaunch, settings.defaultRoomName, profile.username]);
+  }, [settings.autoConnectOnLaunch, settings.defaultRoomName, settings.defaultCommunity, settings.supernodeAddress, profile.username]);
 
   return (
     <section className="card page-card network-page">
       <div className="section-header">
         <h2>网络状态</h2>
-        <p>n2n edge、supernode 路径和当前链路质量都在这里收口展示。启动网络时会自动带当前用户名 {profile.username} 和默认房间 {settings.defaultRoomName}。</p>
+        <p>n2n edge、supernode 路径和当前链路质量都在这里收口展示。启动网络时会自动带当前用户名 {profile.username}、默认房间 {settings.defaultRoomName}、community {settings.defaultCommunity} 和 supernode {settings.supernodeAddress}。</p>
       </div>
       <div className="card-subtle settings-block">
         <div className="settings-label">启动上下文预览</div>
         <div className="settings-value">{profile.username} @ {settings.defaultRoomName}</div>
+        <div className="settings-meta">Community：{settings.defaultCommunity} · Supernode：{settings.supernodeAddress}</div>
         <div className="settings-meta">服务端：{settings.serverBaseUrl} · 自动连接：{settings.autoConnectOnLaunch ? "已开启" : "未开启"}</div>
       </div>
       <div className="network-actions">
