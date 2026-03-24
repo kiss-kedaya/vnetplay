@@ -448,13 +448,13 @@ p {
 .launcher-hero,
 .launcher-main-card,
 .launcher-status-card {
-  padding: 18px;
+  padding: 16px;
 }
 
 .compact-hero,
 .compact-stack-card,
 .compact-status-card {
-  padding: 16px;
+  padding: 14px;
 }
 
 .launcher-hero {
