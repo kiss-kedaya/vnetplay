@@ -52,12 +52,13 @@ jobs:
       - name: Build frontend
         working-directory: app
         run: |
-          npm install
+          npm ci
+          npx tsc --noEmit
           npm run build
 
       - name: Install desktop dependencies
         working-directory: desktop
-        run: npm install
+        run: npm ci
 
       - name: Check desktop Rust formatting
         working-directory: desktop/src-tauri
