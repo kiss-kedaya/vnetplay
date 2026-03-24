@@ -191,4 +191,5 @@
 - [x] Server-side current connection context is now persisted and exposed through `/api/network/status` as `recent_action`.
 - [x] Home page now surfaces both server-side recent action and local desktop recent result for quick state comparison.
 - [x] Rooms page now highlights the current connected room by comparing local recent connection context and server recent action.
-- [ ] Next pass: strengthen release automation and continue turning the shell into an end-to-end usable LAN client.
+- [x] Desktop workflow now supports GitHub Release publishing on `v*` tags or manual dispatch, aggregating multi-platform artifacts into one downloadable release.
+- [ ] Next pass: continue turning the shell into an end-to-end usable LAN client.
