@@ -162,4 +162,5 @@
 - [x] Desktop process service now supports start/stop process management boundaries with PID tracking.
 - [x] Frontend network page now has a desktop bridge abstraction and control buttons for inspect/start/stop flows.
 - [x] GitHub Actions has been upgraded to multi-platform frontend/server/desktop matrix workflows.
-- [ ] Next pass: connect the bridge to real Tauri invoke commands instead of fallback browser shims, then chase CI to fully green.
+- [x] Desktop has been upgraded to a real Tauri app shell with local debug build success.
+- [ ] Next pass: finish chasing multi-platform Tauri app CI to fully green and replace browser bridge fallbacks with real invoke usage.

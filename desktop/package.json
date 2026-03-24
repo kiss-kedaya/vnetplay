@@ -2,5 +2,12 @@
   "name": "vnetplay-desktop",
   "version": "0.1.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "build": "tauri build --debug"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.1.0"
+  }
 }
