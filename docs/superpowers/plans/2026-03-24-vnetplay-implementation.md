@@ -196,4 +196,5 @@
 - [x] Home page now warns when local recent command state and server-side recent action drift apart.
 - [x] Server-side `recent_action` now carries `source` and `pid`, and the frontend surfaces both for better runtime diagnostics.
 - [x] Network page now renders a structured server-side recent-action card with action, room, user, source, pid, time, and status.
+- [x] `v0.1.0` GitHub Release has been published successfully with Windows / Ubuntu / macOS desktop assets.
 - [ ] Next pass: continue turning the shell into an end-to-end usable LAN client.
