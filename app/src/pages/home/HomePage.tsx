@@ -57,8 +57,9 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
     const roomMismatch = connectionContext.roomId !== serverAction.roomId;
     const userMismatch = connectionContext.username !== serverAction.username;
     const statusMismatch = connectionContext.success !== serverAction.success;
+    const pidMismatch = (connectionContext.pid ?? null) !== (serverAction.pid ?? null);
 
-    if (!roomMismatch && !userMismatch && !statusMismatch) {
+    if (!roomMismatch && !userMismatch && !statusMismatch && !pidMismatch) {
       return null;
     }
 
@@ -66,6 +67,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
       roomMismatch ? `房间不一致（本地 ${connectionContext.roomId} / 服务端 ${serverAction.roomId}）` : null,
       userMismatch ? `用户不一致（本地 ${connectionContext.username} / 服务端 ${serverAction.username}）` : null,
       statusMismatch ? `执行状态不一致（本地 ${connectionContext.success ? "success" : "error"} / 服务端 ${serverAction.success ? "success" : "error"}）` : null,
+      pidMismatch ? `PID 不一致（本地 ${connectionContext.pid ?? "n/a"} / 服务端 ${serverAction.pid ?? "n/a"}）` : null,
     ].filter(Boolean);
 
     return reasons.join("；");

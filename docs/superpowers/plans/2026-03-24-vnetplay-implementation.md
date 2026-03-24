@@ -198,4 +198,5 @@
 - [x] Network page now renders a structured server-side recent-action card with action, room, user, source, pid, time, and status.
 - [x] `v0.1.0` GitHub Release has been published successfully with Windows / Ubuntu / macOS desktop assets.
 - [x] Desktop inspect telemetry now includes runtime start time, last start time, last stop time, and last pid for richer runtime diagnostics.
+- [x] Home page mismatch warning now includes PID drift checks between local command state and server-side recent action.
 - [ ] Next pass: continue turning the shell into an end-to-end usable LAN client.
