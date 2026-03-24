@@ -13,7 +13,12 @@ fn build_edge_command(community: &str, supernode: &str) -> Command {
     command
 }
 
-pub fn preview_edge_command(room_id: &str, username: &str, community: &str, supernode: &str) -> String {
+pub fn preview_edge_command(
+    room_id: &str,
+    username: &str,
+    community: &str,
+    supernode: &str,
+) -> String {
     format!(
         "user={} room={} community={} supernode={} {:?}",
         username,
@@ -24,7 +29,12 @@ pub fn preview_edge_command(room_id: &str, username: &str, community: &str, supe
     )
 }
 
-pub fn start_edge(room_id: &str, username: &str, community: &str, supernode: &str) -> CommandOutcome {
+pub fn start_edge(
+    room_id: &str,
+    username: &str,
+    community: &str,
+    supernode: &str,
+) -> CommandOutcome {
     let mut command = build_edge_command(community, supernode);
     command.stdout(Stdio::null()).stderr(Stdio::null());
 
@@ -65,7 +75,11 @@ pub fn stop_edge(pid: u32) -> CommandOutcome {
         },
         Ok(exit) => CommandOutcome {
             ok: false,
-            detail: format!("taskkill failed for pid {} with code {:?}", pid, exit.code()),
+            detail: format!(
+                "taskkill failed for pid {} with code {:?}",
+                pid,
+                exit.code()
+            ),
             pid: Some(pid),
         },
         Err(error) => CommandOutcome {

@@ -90,7 +90,10 @@ impl AppState {
     }
 
     pub fn set_recent_action(&self, action: RecentAction) {
-        let mut recent = self.recent_action.lock().expect("recent_action mutex poisoned");
+        let mut recent = self
+            .recent_action
+            .lock()
+            .expect("recent_action mutex poisoned");
         *recent = action;
     }
 

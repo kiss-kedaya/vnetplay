@@ -100,7 +100,11 @@ async fn dashboard_summary(State(state): State<AppState>) -> Json<DashboardSumma
         .map(|item| item.overlay_ip.clone())
         .unwrap_or_else(|| "10.24.8.12".to_string());
 
-    let latency_ms = heartbeats.values().next().map(|item| item.latency_ms).unwrap_or(32);
+    let latency_ms = heartbeats
+        .values()
+        .next()
+        .map(|item| item.latency_ms)
+        .unwrap_or(32);
 
     Json(DashboardSummary {
         overlay_ip,
@@ -127,7 +131,10 @@ async fn create_room(
     let client_id = payload.client_id.trim();
 
     if room_id.is_empty() || username.is_empty() || client_id.is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "room_id, username, and client_id are required".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "room_id, username, and client_id are required".to_string(),
+        ));
     }
 
     let mut rooms = state.rooms.lock().expect("rooms mutex poisoned");
@@ -172,14 +179,20 @@ async fn join_room(
     let client_id = payload.client_id.trim();
 
     if room_id.is_empty() || username.is_empty() || client_id.is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "room_id, username, and client_id are required".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "room_id, username, and client_id are required".to_string(),
+        ));
     }
 
     let mut rooms = state.rooms.lock().expect("rooms mutex poisoned");
 
     if let Some(room) = rooms.iter_mut().find(|item| item.room_id == room_id) {
         if !room.password_matches(payload.password.as_deref()) {
-            return Err((StatusCode::UNAUTHORIZED, "room password is required or incorrect".to_string()));
+            return Err((
+                StatusCode::UNAUTHORIZED,
+                "room password is required or incorrect".to_string(),
+            ));
         }
 
         room.ensure_participant(username, client_id);
@@ -215,13 +228,21 @@ async fn network_status(State(state): State<AppState>) -> Json<NetworkStatus> {
         .next()
         .map(|item| item.overlay_ip.clone())
         .unwrap_or_else(|| "10.24.8.12".to_string());
-    let latency_ms = heartbeats.values().next().map(|item| item.latency_ms).unwrap_or(32);
+    let latency_ms = heartbeats
+        .values()
+        .next()
+        .map(|item| item.latency_ms)
+        .unwrap_or(32);
 
     Json(NetworkStatus {
         overlay_ip,
         relay: "Tokyo Relay / VPS".to_string(),
         route_mode: "relay-preferred",
-        edge_state: if heartbeats.is_empty() { "idle" } else { "running" },
+        edge_state: if heartbeats.is_empty() {
+            "idle"
+        } else {
+            "running"
+        },
         latency: format!("{} ms", latency_ms),
         community: state.profile.community.clone(),
         supernode: state.profile.supernode.clone(),
@@ -240,7 +261,10 @@ async fn sync_recent_action(
     let detail = payload.detail.trim();
 
     if action.is_empty() || room_id.is_empty() || username.is_empty() || detail.is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "action, room_id, username, and detail are required".to_string()));
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "action, room_id, username, and detail are required".to_string(),
+        ));
     }
 
     let recent_action = RecentAction::new(action, room_id, username, detail, payload.success)
@@ -264,7 +288,10 @@ async fn node_heartbeat(
             "node-heartbeat",
             "heartbeat",
             &payload.node_id,
-            &format!("node {} heartbeat overlay {} {}ms", payload.node_id, payload.overlay_ip, payload.latency_ms),
+            &format!(
+                "node {} heartbeat overlay {} {}ms",
+                payload.node_id, payload.overlay_ip, payload.latency_ms
+            ),
             true,
         )
         .with_source("server-heartbeat")

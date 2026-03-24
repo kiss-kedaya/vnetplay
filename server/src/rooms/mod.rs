@@ -49,7 +49,11 @@ impl RoomSummary {
     }
 
     pub fn ensure_participant(&mut self, username: &str, client_id: &str) {
-        if let Some(index) = self.participant_ids.iter().position(|item| item == client_id) {
+        if let Some(index) = self
+            .participant_ids
+            .iter()
+            .position(|item| item == client_id)
+        {
             self.participants[index] = username.to_string();
         } else {
             self.participant_ids.push(client_id.to_string());
@@ -97,8 +101,15 @@ impl RoomSummary {
             self.host_id = "unknown-machine".to_string();
         }
 
-        self.members = self.participant_ids.len().max(self.participants.len()).max(self.members);
-        self.requires_password = self.password.as_ref().is_some_and(|value| !value.trim().is_empty());
+        self.members = self
+            .participant_ids
+            .len()
+            .max(self.participants.len())
+            .max(self.members);
+        self.requires_password = self
+            .password
+            .as_ref()
+            .is_some_and(|value| !value.trim().is_empty());
     }
 }
 

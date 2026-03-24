@@ -37,7 +37,8 @@ pub fn default_state_path() -> PathBuf {
 pub fn load_state(path: &Path) -> PersistedState {
     match fs::read_to_string(path) {
         Ok(content) => {
-            let mut state = serde_json::from_str(&content).unwrap_or_else(|_| PersistedState::default_state());
+            let mut state =
+                serde_json::from_str(&content).unwrap_or_else(|_| PersistedState::default_state());
             state.normalize();
             state
         }

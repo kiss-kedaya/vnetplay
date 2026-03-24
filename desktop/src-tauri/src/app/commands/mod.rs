@@ -1,9 +1,15 @@
 use chrono::{DateTime, Utc};
 
-use crate::app::services::n2n_service::{is_edge_pid_alive, preview_edge_command, start_edge, stop_edge};
-use crate::app::services::system_identity::{current_machine_id, current_machine_label, current_system_username};
+use crate::app::services::n2n_service::{
+    is_edge_pid_alive, preview_edge_command, start_edge, stop_edge,
+};
+use crate::app::services::system_identity::{
+    current_machine_id, current_machine_label, current_system_username,
+};
 use crate::app::state::DesktopState;
-use crate::ipc::models::{CommandResponse, InspectSnapshot, StartNetworkRequest, SystemIdentityResponse};
+use crate::ipc::models::{
+    CommandResponse, InspectSnapshot, StartNetworkRequest, SystemIdentityResponse,
+};
 
 fn now_string() -> String {
     Utc::now().to_rfc3339()
@@ -18,7 +24,9 @@ fn runtime_duration_from_state(state: &DesktopState, pid_alive: bool) -> (u64, S
         return (0, "unknown".to_string());
     };
 
-    let seconds = (Utc::now() - started_at.with_timezone(&Utc)).num_seconds().max(0) as u64;
+    let seconds = (Utc::now() - started_at.with_timezone(&Utc))
+        .num_seconds()
+        .max(0) as u64;
     (seconds, format_duration_label(seconds))
 }
 
@@ -140,7 +148,8 @@ pub fn inspect_network(state: &mut DesktopState) -> CommandResponse {
 
 fn build_inspect_snapshot(state: &DesktopState) -> InspectSnapshot {
     let pid_alive = state.last_pid.map(is_edge_pid_alive).unwrap_or(false);
-    let (runtime_duration_seconds, runtime_duration_label) = runtime_duration_from_state(state, pid_alive);
+    let (runtime_duration_seconds, runtime_duration_label) =
+        runtime_duration_from_state(state, pid_alive);
 
     InspectSnapshot {
         room_id: state.active_room.clone(),

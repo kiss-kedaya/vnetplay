@@ -23,5 +23,9 @@ jobs:
         working-directory: server
     steps:
       - uses: actions/checkout@v4
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Run clippy
+        run: cargo clippy --all-targets -- -D warnings
       - name: Build server
         run: cargo build --locked

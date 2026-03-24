@@ -59,6 +59,14 @@ jobs:
         working-directory: desktop
         run: npm install
 
+      - name: Check desktop Rust formatting
+        working-directory: desktop/src-tauri
+        run: cargo fmt --check
+
+      - name: Run desktop Rust clippy
+        working-directory: desktop/src-tauri
+        run: cargo clippy --all-targets -- -D warnings
+
       - name: Build Tauri desktop app
         working-directory: desktop
         run: npm run build:release
