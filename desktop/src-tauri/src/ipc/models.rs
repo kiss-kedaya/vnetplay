@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct CommandResponse {
@@ -10,4 +10,10 @@ pub struct CommandResponse {
 #[derive(Clone, Debug, Serialize)]
 pub struct SystemIdentityResponse {
     pub system_username: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct StartNetworkRequest {
+    pub room_id: String,
+    pub username: String,
 }

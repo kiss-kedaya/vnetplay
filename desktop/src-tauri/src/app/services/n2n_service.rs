@@ -7,29 +7,29 @@ pub struct CommandOutcome {
     pub pid: Option<u32>,
 }
 
-fn build_edge_command() -> Command {
+fn build_edge_command(room_id: &str) -> Command {
     let mut command = Command::new("n2n-edge");
-    command.arg("-c").arg("vnetplay-room").arg("-l").arg("127.0.0.1:7777");
+    command.arg("-c").arg(room_id).arg("-l").arg("127.0.0.1:7777");
     command
 }
 
-pub fn preview_edge_command() -> String {
-    format!("{:?}", build_edge_command())
+pub fn preview_edge_command(room_id: &str, username: &str) -> String {
+    format!("user={} room={} {:?}", username, room_id, build_edge_command(room_id))
 }
 
-pub fn start_edge() -> CommandOutcome {
-    let mut command = build_edge_command();
+pub fn start_edge(room_id: &str, username: &str) -> CommandOutcome {
+    let mut command = build_edge_command(room_id);
     command.stdout(Stdio::null()).stderr(Stdio::null());
 
     match command.spawn() {
         Ok(child) => CommandOutcome {
             ok: true,
-            detail: "n2n edge process started".to_string(),
+            detail: format!("n2n edge process started for user {} in room {}", username, room_id),
             pid: Some(child.id()),
         },
         Err(error) => CommandOutcome {
             ok: false,
-            detail: format!("failed to start n2n edge: {}", error),
+            detail: format!("failed to start n2n edge for user {} in room {}: {}", username, room_id, error),
             pid: None,
         },
     }

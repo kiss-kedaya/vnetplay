@@ -22,7 +22,7 @@ use std::sync::Mutex;
 
 use app::commands::{get_system_identity, inspect_network, start_network, stop_network};
 use app::state::DesktopState;
-use ipc::models::{CommandResponse, SystemIdentityResponse};
+use ipc::models::{CommandResponse, StartNetworkRequest, SystemIdentityResponse};
 
 #[tauri::command]
 fn get_system_identity_command() -> SystemIdentityResponse {
@@ -30,14 +30,18 @@ fn get_system_identity_command() -> SystemIdentityResponse {
 }
 
 #[tauri::command]
-fn inspect_network_command() -> CommandResponse {
-    inspect_network()
+fn inspect_network_command(state: tauri::State<Mutex<DesktopState>>) -> CommandResponse {
+    let state = state.lock().expect("desktop state mutex poisoned");
+    inspect_network(&state)
 }
 
 #[tauri::command]
-fn start_network_command(state: tauri::State<Mutex<DesktopState>>) -> CommandResponse {
+fn start_network_command(
+    payload: StartNetworkRequest,
+    state: tauri::State<Mutex<DesktopState>>,
+) -> CommandResponse {
     let mut state = state.lock().expect("desktop state mutex poisoned");
-    start_network(&mut state)
+    start_network(&mut state, payload)
 }
 
 #[tauri::command]

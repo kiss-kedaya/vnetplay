@@ -6,6 +6,8 @@ import {
   stopNetworkBridge,
   type DesktopCommandResult,
 } from "../../lib/desktop/bridge";
+import type { UserProfile } from "../../lib/profile/userProfile";
+import type { AppSettings } from "../../lib/settings/appSettings";
 
 const fallbackStatus: NetworkStatus = {
   overlayIp: "10.24.8.12",
@@ -21,22 +23,35 @@ const idleResult: DesktopCommandResult = {
   pid: null,
 };
 
-export function NetworkPage() {
+type NetworkPageProps = {
+  profile: UserProfile;
+  settings: AppSettings;
+};
+
+export function NetworkPage({ profile, settings }: NetworkPageProps) {
   const [status, setStatus] = useState<NetworkStatus>(fallbackStatus);
   const [commandResult, setCommandResult] = useState<DesktopCommandResult>(idleResult);
 
   useEffect(() => {
     fetchNetworkStatus().then(setStatus);
-  }, []);
+  }, [settings.serverBaseUrl]);
+
+  async function handleStartNetwork() {
+    const result = await startNetworkBridge({
+      roomId: settings.defaultRoomName,
+      username: profile.username,
+    });
+    setCommandResult(result);
+  }
 
   return (
     <section className="card page-card">
       <div className="section-header">
         <h2>网络状态</h2>
-        <p>n2n edge、supernode 路径和当前链路质量都在这里收口展示。</p>
+        <p>n2n edge、supernode 路径和当前链路质量都在这里收口展示。启动网络时会自动带当前用户名 {profile.username} 和默认房间 {settings.defaultRoomName}。</p>
       </div>
       <div className="network-actions">
-        <button className="primary-button" type="button" onClick={() => startNetworkBridge().then(setCommandResult)}>
+        <button className="primary-button" type="button" onClick={handleStartNetwork}>
           启动网络
         </button>
         <button className="ghost-button" type="button" onClick={() => stopNetworkBridge().then(setCommandResult)}>

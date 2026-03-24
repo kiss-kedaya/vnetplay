@@ -25,7 +25,7 @@ function renderPage(key: string, props: PageProps) {
     case "rooms":
       return <RoomsPage profile={props.profile} settings={props.settings} />;
     case "network":
-      return <NetworkPage />;
+      return <NetworkPage profile={props.profile} settings={props.settings} />;
     case "diagnostics":
       return <DiagnosticsPage />;
     case "settings":
