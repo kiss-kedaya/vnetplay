@@ -160,4 +160,5 @@
 - [x] Server state now supports local JSON persistence for rooms and heartbeat snapshots.
 - [x] Desktop command layer now has callable start and inspect boundaries instead of a single placeholder summary.
 - [x] Desktop process service now supports start/stop process management boundaries with PID tracking.
-- [ ] Next pass: connect desktop commands to Tauri invoke flow and let the frontend drive those commands.
+- [x] Frontend network page now has a desktop bridge abstraction and control buttons for inspect/start/stop flows.
+- [ ] Next pass: connect the bridge to real Tauri invoke commands instead of fallback browser shims.

@@ -8,6 +8,9 @@ mod app {
 mod game {
     pub mod detector;
 }
+mod ipc {
+    pub mod models;
+}
 mod network {
     pub mod edge_manager;
     pub mod node_status;
@@ -27,8 +30,8 @@ fn main() {
     println!("route: {}", current_route());
     println!("games: {:?}", supported_games());
     println!("command bridge: {}", command_summary());
-    println!("edge preview: {}", inspect_network());
-    println!("stop network: {}", stop_network(&mut state));
+    println!("edge preview: {:?}", inspect_network());
+    println!("stop network: {:?}", stop_network(&mut state));
     println!("active room: {}", state.active_room);
     println!("last command: {}", state.last_command);
     println!("last pid: {:?}", state.last_pid);
