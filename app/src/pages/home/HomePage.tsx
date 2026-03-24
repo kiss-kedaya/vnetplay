@@ -230,8 +230,8 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
           <div className="settings-meta">进入房间后，在游戏里搜索局域网房间，或使用虚拟 IP 加入。</div>
         </div>
         <div className="card-subtle launcher-helper-card">
-          <div className="settings-label">辅助入口</div>
-          <div className="settings-meta">需要高级网络信息时，再去“网络”或“排障”；平时只用当前首页即可。</div>
+          <div className="settings-label">设备标识</div>
+          <div className="settings-meta">当前昵称：{profile.username}；当前设备：{profile.machineLabel}；房间侧唯一身份已改为机器码。</div>
         </div>
       </section>
     </div>

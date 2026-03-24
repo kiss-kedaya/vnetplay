@@ -440,6 +440,38 @@ p {
   justify-content: flex-start;
 }
 
+.room-picker-list {
+  display: grid;
+  gap: 8px;
+}
+
+.room-picker-card {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 11px 12px;
+  text-align: left;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  background: #fafafa;
+  color: #111827;
+  cursor: pointer;
+}
+
+.room-picker-card.active {
+  border-color: #cbd5e1;
+  background: #f3f4f6;
+}
+
+.room-picker-title {
+  font-weight: 700;
+}
+
+.room-picker-meta {
+  color: #6b7280;
+  font-size: 0.88rem;
+}
+
 .launcher-empty {
   padding: 14px;
   border: 1px dashed #d1d5db;
