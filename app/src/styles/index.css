@@ -418,13 +418,23 @@ p {
 
 .launcher-main-grid,
 .launcher-status-grid,
-.launcher-helper-grid {
+.launcher-helper-grid,
+.compact-room-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
 .launcher-main-card {
+  display: grid;
+  gap: 10px;
+}
+
+.compact-stack-card {
+  align-content: start;
+}
+
+.compact-status-card {
   display: grid;
   gap: 10px;
 }
