@@ -68,6 +68,7 @@ p {
 
 .shell-sidebar-slim {
   gap: 10px;
+  background: #fcfcfc;
 }
 
 .brand {
@@ -100,6 +101,10 @@ p {
   font-weight: 700;
 }
 
+.brand-subtitle {
+  font-size: 0.78rem;
+}
+
 .brand-subtitle,
 .nav-description,
 .card-detail,
@@ -125,17 +130,20 @@ p {
   display: grid;
   gap: 4px;
   text-align: left;
-  padding: 10px 12px;
+  padding: 9px 10px;
   border-radius: 10px;
   border: 1px solid transparent;
   background: transparent;
-  color: inherit;
+  color: #6b7280;
   cursor: pointer;
+  opacity: 0.72;
 }
 
 .nav-item.active {
   background: #f3f4f6;
   border-color: #d1d5db;
+  color: #111827;
+  opacity: 1;
 }
 
 .nav-label {
