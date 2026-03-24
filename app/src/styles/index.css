@@ -62,14 +62,22 @@ p {
 .sidebar {
   display: grid;
   align-content: start;
-  gap: 14px;
-  padding: 14px;
+  gap: 12px;
+  padding: 12px;
+}
+
+.shell-sidebar-slim {
+  gap: 10px;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.shell-brand-slim {
+  gap: 8px;
 }
 
 .brand-mark {
