@@ -10,6 +10,7 @@ export type InspectSnapshot = {
   lastStartedAt: string;
   lastStoppedAt: string;
   lastPid: number | null;
+  pidAlive: boolean;
   runtimeDurationSeconds: number;
   runtimeDurationLabel: string;
 };

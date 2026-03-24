@@ -44,6 +44,7 @@ const idleInspect: InspectSnapshot = {
   lastStartedAt: "--",
   lastStoppedAt: "--",
   lastPid: null,
+  pidAlive: false,
   runtimeDurationSeconds: 0,
   runtimeDurationLabel: "idle",
 };
@@ -214,6 +215,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
           <div><strong>最近启动</strong><span>{inspect.lastStartedAt}</span></div>
           <div><strong>最近停止</strong><span>{inspect.lastStoppedAt}</span></div>
           <div><strong>最近 PID</strong><span>{inspect.lastPid ?? "n/a"}</span></div>
+          <div><strong>PID 存活</strong><span>{inspect.pidAlive ? "alive" : "stale"}</span></div>
           <div><strong>运行时长</strong><span>{inspect.runtimeDurationLabel}</span></div>
         </div>
         <div className="command-log">

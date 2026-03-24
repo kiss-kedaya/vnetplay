@@ -75,3 +75,23 @@ pub fn stop_edge(pid: u32) -> CommandOutcome {
         },
     }
 }
+
+pub fn is_edge_pid_alive(pid: u32) -> bool {
+    let output = Command::new("tasklist")
+        .arg("/FI")
+        .arg(format!("PID eq {}", pid))
+        .arg("/FO")
+        .arg("CSV")
+        .arg("/NH")
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output();
+
+    match output {
+        Ok(result) if result.status.success() => {
+            let stdout = String::from_utf8_lossy(&result.stdout);
+            stdout.contains(&format!(",\"{}\"", pid))
+        }
+        _ => false,
+    }
+}

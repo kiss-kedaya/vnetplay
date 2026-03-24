@@ -13,6 +13,7 @@ pub struct InspectSnapshot {
     pub last_started_at: String,
     pub last_stopped_at: String,
     pub last_pid: Option<u32>,
+    pub pid_alive: bool,
     pub runtime_duration_seconds: u64,
     pub runtime_duration_label: String,
 }

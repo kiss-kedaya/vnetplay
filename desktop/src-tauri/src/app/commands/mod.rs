@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-use crate::app::services::n2n_service::{preview_edge_command, start_edge, stop_edge};
+use crate::app::services::n2n_service::{is_edge_pid_alive, preview_edge_command, start_edge, stop_edge};
 use crate::app::services::system_identity::current_system_username;
 use crate::app::state::DesktopState;
 use crate::ipc::models::{CommandResponse, InspectSnapshot, StartNetworkRequest, SystemIdentityResponse};
@@ -9,8 +9,8 @@ fn now_string() -> String {
     Utc::now().to_rfc3339()
 }
 
-fn runtime_duration_from_state(state: &DesktopState) -> (u64, String) {
-    if state.last_pid.is_none() {
+fn runtime_duration_from_state(state: &DesktopState, pid_alive: bool) -> (u64, String) {
+    if state.last_pid.is_none() || !pid_alive {
         return (0, "idle".to_string());
     }
 
@@ -101,21 +101,38 @@ pub fn stop_network(state: &mut DesktopState) -> CommandResponse {
 }
 
 pub fn inspect_network(state: &DesktopState) -> CommandResponse {
-    CommandResponse {
-        ok: true,
-        detail: preview_edge_command(
+    let inspect = build_inspect_snapshot(state);
+    let detail = if state.last_pid.is_some() && !inspect.pid_alive {
+        format!(
+            "stale pid detected: recorded pid {:?} is not alive; {}",
+            inspect.last_pid,
+            preview_edge_command(
+                &state.active_room,
+                &state.current_username,
+                &state.current_community,
+                &state.current_supernode,
+            )
+        )
+    } else {
+        preview_edge_command(
             &state.active_room,
             &state.current_username,
             &state.current_community,
             &state.current_supernode,
-        ),
+        )
+    };
+
+    CommandResponse {
+        ok: inspect.pid_alive || inspect.last_pid.is_none(),
+        detail,
         pid: state.last_pid,
-        inspect: Some(build_inspect_snapshot(state)),
+        inspect: Some(inspect),
     }
 }
 
 fn build_inspect_snapshot(state: &DesktopState) -> InspectSnapshot {
-    let (runtime_duration_seconds, runtime_duration_label) = runtime_duration_from_state(state);
+    let pid_alive = state.last_pid.map(is_edge_pid_alive).unwrap_or(false);
+    let (runtime_duration_seconds, runtime_duration_label) = runtime_duration_from_state(state, pid_alive);
 
     InspectSnapshot {
         room_id: state.active_room.clone(),
@@ -128,16 +145,17 @@ fn build_inspect_snapshot(state: &DesktopState) -> InspectSnapshot {
             &state.current_community,
             &state.current_supernode,
         ),
-        edge_state: if state.last_pid.is_some() {
-            "running".to_string()
-        } else {
-            "idle".to_string()
+        edge_state: match (state.last_pid, pid_alive) {
+            (Some(_), true) => "running".to_string(),
+            (Some(_), false) => "stale-pid".to_string(),
+            (None, _) => "idle".to_string(),
         },
         last_command: state.last_command.clone(),
         runtime_started_at: state.runtime_started_at.clone(),
         last_started_at: state.last_started_at.clone(),
         last_stopped_at: state.last_stopped_at.clone(),
         last_pid: state.last_pid,
+        pid_alive,
         runtime_duration_seconds,
         runtime_duration_label,
     }
