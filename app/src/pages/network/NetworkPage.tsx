@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchNetworkStatus, type NetworkStatus } from "../../lib/api/network";
 import {
   inspectNetworkBridge,
   startNetworkBridge,
   stopNetworkBridge,
   type DesktopCommandResult,
+  type InspectSnapshot,
 } from "../../lib/desktop/bridge";
 import type { UserProfile } from "../../lib/profile/userProfile";
 import type { ConnectionContext } from "../../lib/runtime/connectionContext";
@@ -18,10 +19,21 @@ const fallbackStatus: NetworkStatus = {
   latency: "32 ms",
 };
 
+const idleInspect: InspectSnapshot = {
+  roomId: "sts2-night-run",
+  username: "player",
+  community: "vnetplay-room",
+  supernode: "127.0.0.1:7777",
+  commandPreview: 'Command { std: "n2n-edge" "-c" "vnetplay-room" "-l" "127.0.0.1:7777" }',
+  edgeState: "idle",
+  lastCommand: "idle",
+};
+
 const idleResult: DesktopCommandResult = {
   ok: true,
   detail: "等待执行桌面命令",
   pid: null,
+  inspect: idleInspect,
 };
 
 type NetworkPageProps = {
@@ -35,6 +47,8 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
   const [status, setStatus] = useState<NetworkStatus>(fallbackStatus);
   const [commandResult, setCommandResult] = useState<DesktopCommandResult>(idleResult);
   const autoConnectTriggeredRef = useRef(false);
+
+  const inspect = useMemo(() => commandResult.inspect ?? idleInspect, [commandResult.inspect]);
 
   useEffect(() => {
     fetchNetworkStatus().then(setStatus);
@@ -133,6 +147,21 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
         <div><strong>路由模式</strong><span>{status.routeMode}</span></div>
         <div><strong>edge 状态</strong><span>{status.edgeState}</span></div>
         <div><strong>延迟</strong><span>{status.latency}</span></div>
+      </div>
+      <div className="card-subtle settings-block">
+        <div className="settings-label">桌面 inspect 结果</div>
+        <div className="key-value-grid">
+          <div><strong>房间</strong><span>{inspect.roomId}</span></div>
+          <div><strong>用户名</strong><span>{inspect.username}</span></div>
+          <div><strong>Community</strong><span>{inspect.community}</span></div>
+          <div><strong>Supernode</strong><span>{inspect.supernode}</span></div>
+          <div><strong>edge 状态</strong><span>{inspect.edgeState}</span></div>
+          <div><strong>最后命令</strong><span>{inspect.lastCommand}</span></div>
+        </div>
+        <div className="command-log">
+          <div className="command-log-label">命令预览</div>
+          <div className="command-log-detail">{inspect.commandPreview}</div>
+        </div>
       </div>
       <div className="command-log card-subtle">
         <div className="command-log-label">桌面命令结果</div>

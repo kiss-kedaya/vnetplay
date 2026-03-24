@@ -1,7 +1,18 @@
+export type InspectSnapshot = {
+  roomId: string;
+  username: string;
+  community: string;
+  supernode: string;
+  commandPreview: string;
+  edgeState: string;
+  lastCommand: string;
+};
+
 export type DesktopCommandResult = {
   ok: boolean;
   detail: string;
   pid?: number | null;
+  inspect?: InspectSnapshot | null;
 };
 
 export type DesktopIdentityResult = {
@@ -37,6 +48,7 @@ async function invokeDesktop(command: string, payload?: Record<string, unknown>)
       ok: false,
       detail: `desktop runtime unavailable for ${command}; please run inside the Tauri desktop app`,
       pid: null,
+      inspect: null,
     };
   }
 
@@ -47,6 +59,7 @@ async function invokeDesktop(command: string, payload?: Record<string, unknown>)
       ok: false,
       detail: error instanceof Error ? error.message : String(error),
       pid: null,
+      inspect: null,
     };
   }
 }

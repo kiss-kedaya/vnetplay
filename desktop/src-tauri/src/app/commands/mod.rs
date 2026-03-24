@@ -1,7 +1,7 @@
 use crate::app::services::n2n_service::{preview_edge_command, start_edge, stop_edge};
 use crate::app::services::system_identity::current_system_username;
 use crate::app::state::DesktopState;
-use crate::ipc::models::{CommandResponse, StartNetworkRequest, SystemIdentityResponse};
+use crate::ipc::models::{CommandResponse, InspectSnapshot, StartNetworkRequest, SystemIdentityResponse};
 
 pub fn command_summary() -> &'static str {
     "desktop command bridge ready"
@@ -31,6 +31,7 @@ pub fn start_network(state: &mut DesktopState, payload: StartNetworkRequest) -> 
         ok: outcome.ok,
         detail: outcome.detail,
         pid: outcome.pid,
+        inspect: Some(build_inspect_snapshot(state)),
     }
 }
 
@@ -48,12 +49,14 @@ pub fn stop_network(state: &mut DesktopState) -> CommandResponse {
                 ok: outcome.ok,
                 detail: outcome.detail,
                 pid: outcome.pid,
+                inspect: Some(build_inspect_snapshot(state)),
             }
         }
         None => CommandResponse {
             ok: true,
             detail: "no running n2n edge pid recorded".to_string(),
             pid: None,
+            inspect: Some(build_inspect_snapshot(state)),
         },
     }
 }
@@ -68,5 +71,27 @@ pub fn inspect_network(state: &DesktopState) -> CommandResponse {
             &state.current_supernode,
         ),
         pid: state.last_pid,
+        inspect: Some(build_inspect_snapshot(state)),
+    }
+}
+
+fn build_inspect_snapshot(state: &DesktopState) -> InspectSnapshot {
+    InspectSnapshot {
+        room_id: state.active_room.clone(),
+        username: state.current_username.clone(),
+        community: state.current_community.clone(),
+        supernode: state.current_supernode.clone(),
+        command_preview: preview_edge_command(
+            &state.active_room,
+            &state.current_username,
+            &state.current_community,
+            &state.current_supernode,
+        ),
+        edge_state: if state.last_pid.is_some() {
+            "running".to_string()
+        } else {
+            "idle".to_string()
+        },
+        last_command: state.last_command.clone(),
     }
 }
