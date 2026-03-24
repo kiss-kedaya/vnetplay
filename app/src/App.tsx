@@ -59,6 +59,12 @@ export function App() {
     setConnectionContext(resolveConnectionContext());
   }, []);
 
+  useEffect(() => {
+    if (activeKey === "rooms") {
+      setActiveKey("home");
+    }
+  }, [activeKey]);
+
   const activeItem = useMemo(() => navItems.find((item) => item.key === activeKey) ?? navItems[0], [activeKey]);
 
   function handleSaveUsername(username: string) {

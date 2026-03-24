@@ -206,4 +206,5 @@
 - [x] Room flow now blocks create/join until a server URL is provided, shows room population plus password requirement, and keeps the selected room status visible after joining.
 - [x] Home page has been reshaped into a launcher-style workflow with two primary actions, current room status, and helper hints, moving closer to a LAN toolbox instead of a dashboard.
 - [x] Room identity now moves toward a machine-code-based model: desktop identity exposes machine id/label, frontend profile carries it, and room create/join calls now use client_id for stable per-device membership.
+- [x] The primary shell is now further converging toward a single room workspace: top-level navigation no longer promotes a separate rooms page, and the home workspace carries room creation, room joining, selected room details, and machine-label context in one place.
 - [ ] Next pass: continue turning the shell into an end-to-end usable LAN client.

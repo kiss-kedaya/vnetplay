@@ -207,13 +207,15 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
         <div className="card launcher-status-card">
           <div className="section-header">
             <h2>已选房间信息</h2>
-            <p>读取服务器后，可以先看人数和是否需要密码。</p>
+            <p>读取服务器后，可以先看人数、密码要求和设备成员。</p>
           </div>
           {selectedRoom ? (
             <div className="key-value-grid">
               <div><strong>房间名</strong><span>{selectedRoom.roomId}</span></div>
               <div><strong>人数</strong><span>{selectedRoom.members}</span></div>
               <div><strong>密码</strong><span>{selectedRoom.requiresPassword ? "需要密码" : "无需密码"}</span></div>
+              <div><strong>房主</strong><span>{selectedRoom.host}</span></div>
+              <div><strong>房主设备</strong><span>{selectedRoom.hostId || "--"}</span></div>
               <div><strong>成员</strong><span>{selectedRoom.participants.join(" / ") || "--"}</span></div>
             </div>
           ) : (
