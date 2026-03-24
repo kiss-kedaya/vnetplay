@@ -508,6 +508,50 @@ p {
     grid-template-columns: 1fr;
   }
 
+  .topbar,
+  .compact-hero-slim,
+  .room-picker-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .table-row,
+  .room-table-row,
+  .room-table-row-extended {
+    grid-template-columns: 1fr;
+  }
+}
+a {
+  color: #6b7280;
+  font-size: 0.88rem;
+}
+
+.launcher-empty {
+  padding: 14px;
+  border: 1px dashed #d1d5db;
+  border-radius: 10px;
+  color: #6b7280;
+  background: #fafafa;
+}
+
+.launcher-helper-card {
+  padding: 14px;
+}
+
+@media (max-width: 1100px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .page-grid,
+  .settings-grid,
+  .rooms-actions-grid,
+  .launcher-main-grid,
+  .launcher-status-grid,
+  .launcher-helper-grid {
+    grid-template-columns: 1fr;
+  }
+
   .topbar {
     flex-direction: column;
   }

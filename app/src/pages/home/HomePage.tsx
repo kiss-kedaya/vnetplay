@@ -184,14 +184,21 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
             {rooms.length > 0 ? (
               rooms.map((room) => {
                 const active = room.roomId === selectedRoomId;
+                const connected = room.roomId === connectionContext.roomId && connectionContext.success;
                 return (
                   <button
                     key={room.roomId}
                     type="button"
-                    className={`room-picker-card ${active ? "active" : ""}`}
+                    className={`room-picker-card ${active ? "active" : ""} ${connected ? "connected" : ""}`}
                     onClick={() => setSelectedRoomId(room.roomId)}
                   >
-                    <span className="room-picker-title">{room.roomId}</span>
+                    <span className="room-picker-head">
+                      <span className="room-picker-title">{room.roomId}</span>
+                      <span className="room-picker-badges">
+                        {connected ? <span className="room-picker-badge connected">当前连接</span> : null}
+                        {active ? <span className="room-picker-badge active">已选中</span> : null}
+                      </span>
+                    </span>
                     <span className="room-picker-meta">{room.members} 人 · {room.requiresPassword ? "需要密码" : "免密码"}</span>
                     <span className="room-picker-meta">房主：{room.host}</span>
                   </button>
