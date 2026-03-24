@@ -1,26 +1,50 @@
 import { useEffect, useMemo, useState } from "react";
+import { fetchNetworkStatus, type NetworkStatus } from "../../lib/api/network";
 import { createRoom, fetchRooms, joinRoom, type RoomItem } from "../../lib/api/rooms";
 import type { UserProfile } from "../../lib/profile/userProfile";
+import type { ConnectionContext } from "../../lib/runtime/connectionContext";
 import type { AppSettings } from "../../lib/settings/appSettings";
 
 type RoomsPageProps = {
   profile: UserProfile;
   settings: AppSettings;
+  connectionContext: ConnectionContext;
+};
+
+const fallbackStatus: NetworkStatus = {
+  overlayIp: "10.24.8.12",
+  relay: "Tokyo Relay / VPS",
+  routeMode: "relay-preferred",
+  edgeState: "running",
+  latency: "32 ms",
+  community: "vnetplay-room",
+  supernode: "127.0.0.1:7777",
+  secretMasked: "********",
+  recentAction: {
+    action: "idle",
+    roomId: "未连接",
+    username: "player",
+    detail: "尚未收到服务端侧最近动作",
+    success: true,
+    updatedAt: "--",
+  },
 };
 
 function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function RoomsPage({ profile, settings }: RoomsPageProps) {
+export function RoomsPage({ profile, settings, connectionContext }: RoomsPageProps) {
   const [rooms, setRooms] = useState<RoomItem[]>([]);
+  const [serverStatus, setServerStatus] = useState<NetworkStatus>(fallbackStatus);
   const [createRoomId, setCreateRoomId] = useState(settings.defaultRoomName);
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [feedback, setFeedback] = useState("准备创建或加入房间。");
 
   useEffect(() => {
-    fetchRooms().then((items) => {
+    Promise.all([fetchRooms(), fetchNetworkStatus()]).then(([items, status]) => {
       setRooms(items);
+      setServerStatus(status);
       setSelectedRoomId(items[0]?.roomId ?? "");
     });
   }, [settings.serverBaseUrl]);
@@ -32,8 +56,9 @@ export function RoomsPage({ profile, settings }: RoomsPageProps) {
   const activeRoom = useMemo(() => rooms.find((room) => room.roomId === selectedRoomId) ?? rooms[0], [rooms, selectedRoomId]);
 
   async function refreshRooms(nextSelectedRoomId?: string) {
-    const items = await fetchRooms();
+    const [items, status] = await Promise.all([fetchRooms(), fetchNetworkStatus()]);
     setRooms(items);
+    setServerStatus(status);
     setSelectedRoomId(nextSelectedRoomId ?? items[0]?.roomId ?? "");
   }
 
@@ -77,6 +102,18 @@ export function RoomsPage({ profile, settings }: RoomsPageProps) {
     }
   }
 
+  function resolveRoomBadge(room: RoomItem): string | null {
+    if (room.roomId === connectionContext.roomId && connectionContext.success) {
+      return "本地当前连接";
+    }
+
+    if (room.roomId === serverStatus.recentAction.roomId && serverStatus.recentAction.success) {
+      return "服务端最近动作";
+    }
+
+    return null;
+  }
+
   return (
     <section className="card page-card rooms-page">
       <div className="section-header">
@@ -118,17 +155,23 @@ export function RoomsPage({ profile, settings }: RoomsPageProps) {
           <span>最近活跃</span>
           <span>成员</span>
         </div>
-        {rooms.map((room) => (
-          <div key={room.roomId} className="table-row room-table-row room-table-row-extended">
-            <span>{room.roomId}</span>
-            <span>{room.game}</span>
-            <span>{room.mode}</span>
-            <span>{room.members}</span>
-            <span>{room.host}</span>
-            <span>{room.lastActiveAt}</span>
-            <span>{room.participants.join(" / ")}</span>
-          </div>
-        ))}
+        {rooms.map((room) => {
+          const badge = resolveRoomBadge(room);
+          return (
+            <div key={room.roomId} className={`table-row room-table-row room-table-row-extended ${badge ? "room-row-highlight" : ""}`}>
+              <span>
+                <strong>{room.roomId}</strong>
+                {badge ? <span className="room-badge">{badge}</span> : null}
+              </span>
+              <span>{room.game}</span>
+              <span>{room.mode}</span>
+              <span>{room.members}</span>
+              <span>{room.host}</span>
+              <span>{room.lastActiveAt}</span>
+              <span>{room.participants.join(" / ")}</span>
+            </div>
+          );
+        })}
       </div>
 
       {activeRoom ? (
@@ -138,6 +181,7 @@ export function RoomsPage({ profile, settings }: RoomsPageProps) {
           <div className="settings-meta">创建时间：{activeRoom.createdAt}</div>
           <div className="settings-meta">最近活跃：{activeRoom.lastActiveAt}</div>
           <div className="settings-meta">成员：{activeRoom.participants.join(" / ")}</div>
+          <div className="settings-meta">服务端最近动作：{serverStatus.recentAction.action} · {serverStatus.recentAction.updatedAt}</div>
         </div>
       ) : null}
     </section>

@@ -190,4 +190,5 @@
 - [x] Network page inspect output is now structured, with room / username / community / supernode / edge state / last command rendered as first-class fields.
 - [x] Server-side current connection context is now persisted and exposed through `/api/network/status` as `recent_action`.
 - [x] Home page now surfaces both server-side recent action and local desktop recent result for quick state comparison.
-- [ ] Next pass: strengthen release automation, add current connected room highlighting, and continue turning the shell into an end-to-end usable LAN client.
+- [x] Rooms page now highlights the current connected room by comparing local recent connection context and server recent action.
+- [ ] Next pass: strengthen release automation and continue turning the shell into an end-to-end usable LAN client.

@@ -26,7 +26,7 @@ type PageProps = {
 function renderPage(key: string, props: PageProps) {
   switch (key) {
     case "rooms":
-      return <RoomsPage profile={props.profile} settings={props.settings} />;
+      return <RoomsPage profile={props.profile} settings={props.settings} connectionContext={props.connectionContext} />;
     case "network":
       return <NetworkPage profile={props.profile} settings={props.settings} connectionContext={props.connectionContext} onUpdateConnectionContext={props.onUpdateConnectionContext} />;
     case "diagnostics":
