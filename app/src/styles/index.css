@@ -126,6 +126,19 @@ p {
   gap: 8px;
 }
 
+.nav-list-secondary {
+  gap: 4px;
+}
+
+.nav-group-label {
+  color: #9ca3af;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
 .nav-item {
   display: grid;
   gap: 4px;
@@ -144,6 +157,15 @@ p {
   border-color: #d1d5db;
   color: #111827;
   opacity: 1;
+}
+
+.nav-item-primary {
+  min-height: 40px;
+}
+
+.nav-item-secondary {
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 
 .nav-label {
