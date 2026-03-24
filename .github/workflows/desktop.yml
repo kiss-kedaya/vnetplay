@@ -2,12 +2,14 @@ name: desktop
 
 on:
   push:
+    branches:
+      - main
+    tags:
+      - 'v*'
     paths:
       - 'app/**'
       - 'desktop/**'
       - '.github/workflows/desktop.yml'
-    tags:
-      - 'v*'
   pull_request:
     paths:
       - 'app/**'
