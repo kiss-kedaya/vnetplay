@@ -169,6 +169,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
         <div className="launcher-inline-actions">
           <button className="ghost-button" type="button" onClick={handleLoadRooms}>{loadingRooms ? "读取中..." : "查看服务器房间"}</button>
         </div>
+        <div className="path-hint">房主和玩家先填同一个服务器地址。</div>
       </section>
 
       <section className="compact-room-grid">

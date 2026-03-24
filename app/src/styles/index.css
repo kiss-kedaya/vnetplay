@@ -534,6 +534,11 @@ p {
   justify-content: flex-start;
 }
 
+.path-hint {
+  color: #6b7280;
+  font-size: 0.82rem;
+}
+
 .room-picker-list {
   display: grid;
   gap: 8px;
