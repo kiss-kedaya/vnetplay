@@ -9,7 +9,7 @@ export function Topbar({ title, description, username, profileSource }: TopbarPr
   return (
     <header className="topbar card">
       <div>
-        <div className="eyebrow">Vercel 风格控制台</div>
+        <div className="eyebrow">桌面网络控制</div>
         <h1>{title}</h1>
         <p>{description}</p>
       </div>

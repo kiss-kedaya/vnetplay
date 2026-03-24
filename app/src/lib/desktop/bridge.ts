@@ -47,6 +47,19 @@ function getInvoke() {
   return window.__TAURI__?.core?.invoke;
 }
 
+async function waitForInvoke(retries = 8, delayMs = 200) {
+  for (let index = 0; index < retries; index += 1) {
+    const invoke = getInvoke();
+    if (invoke) {
+      return invoke;
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, delayMs));
+  }
+
+  return undefined;
+}
+
 async function invokeDesktop(command: string, payload?: Record<string, unknown>): Promise<DesktopCommandResult> {
   const invoke = getInvoke();
 
@@ -72,10 +85,16 @@ async function invokeDesktop(command: string, payload?: Record<string, unknown>)
 }
 
 export async function readSystemIdentityBridge(): Promise<DesktopIdentityResult> {
-  const invoke = getInvoke();
+  const invoke = await waitForInvoke();
 
   if (invoke) {
-    return invoke<DesktopIdentityResult>("get_system_identity_command");
+    try {
+      return await invoke<DesktopIdentityResult>("get_system_identity_command");
+    } catch {
+      return {
+        systemUsername: "player",
+      };
+    }
   }
 
   return {

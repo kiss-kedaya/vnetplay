@@ -1,8 +1,8 @@
 :root {
-  color-scheme: dark;
-  font-family: Inter, system-ui, sans-serif;
-  background: #09090b;
-  color: #fafafa;
+  color-scheme: light;
+  font-family: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
+  background: #ffffff;
+  color: #111827;
 }
 
 * {
@@ -17,10 +17,8 @@ body,
 }
 
 body {
-  background:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 28%),
-    linear-gradient(180deg, #09090b 0%, #0f172a 100%);
-  color: #fafafa;
+  background: #f7f7f8;
+  color: #111827;
 }
 
 button,
@@ -37,61 +35,60 @@ p {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: 220px 1fr;
   min-height: 100vh;
-  gap: 20px;
-  padding: 20px;
+  gap: 12px;
+  padding: 12px;
 }
 
 .main-shell {
   display: grid;
-  gap: 20px;
+  gap: 12px;
 }
 
 .card {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(9, 9, 11, 0.84);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
-  backdrop-filter: blur(12px);
-  border-radius: 24px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  border-radius: 14px;
 }
 
 .card-subtle {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 18px;
+  border: 1px solid #e5e7eb;
+  background: #fafafa;
+  border-radius: 12px;
 }
 
 .sidebar {
   display: grid;
   align-content: start;
-  gap: 20px;
-  padding: 24px;
+  gap: 14px;
+  padding: 14px;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 10px;
 }
 
 .brand-mark {
   display: grid;
   place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
-  color: #020617;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #111827;
+  color: #ffffff;
 }
 
 .icon {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
 }
 
 .brand-title {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -106,21 +103,22 @@ p {
 .profile-chip-label,
 .profile-chip-meta,
 .settings-meta,
-.settings-label {
-  color: #a1a1aa;
+.settings-label,
+.table-head {
+  color: #6b7280;
 }
 
 .nav-list {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .nav-item {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   text-align: left;
-  padding: 16px;
-  border-radius: 18px;
+  padding: 10px 12px;
+  border-radius: 10px;
   border: 1px solid transparent;
   background: transparent;
   color: inherit;
@@ -128,8 +126,8 @@ p {
 }
 
 .nav-item.active {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: #f3f4f6;
+  border-color: #d1d5db;
 }
 
 .nav-label {
@@ -140,123 +138,126 @@ p {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 16px;
-  padding: 28px;
+  gap: 12px;
+  padding: 16px 18px;
 }
 
 .topbar h1 {
-  margin: 8px 0;
-  font-size: 2rem;
+  margin: 4px 0;
+  font-size: 1.4rem;
 }
 
 .topbar p {
   margin: 0;
-  max-width: 48rem;
+  max-width: 40rem;
+  font-size: 0.92rem;
+  line-height: 1.45;
 }
 
 .topbar-actions,
 .network-actions {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .profile-chip {
-  min-width: 220px;
-  padding: 14px 16px;
+  min-width: 160px;
+  padding: 10px 12px;
 }
 
 .profile-chip-value,
 .settings-value {
-  margin-top: 6px;
-  font-size: 1.2rem;
+  margin-top: 4px;
+  font-size: 1rem;
   font-weight: 700;
 }
 
 .primary-button,
 .ghost-button {
-  padding: 12px 16px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
   cursor: pointer;
 }
 
 .primary-button {
-  background: #fafafa;
-  color: #09090b;
+  background: #111827;
+  color: #ffffff;
 }
 
 .ghost-button {
-  background: transparent;
-  color: #fafafa;
+  background: #ffffff;
+  color: #111827;
 }
 
 .page-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20px;
+  gap: 12px;
 }
 
 .info-card,
 .page-card {
-  padding: 24px;
+  padding: 16px;
 }
 
 .card-value {
-  margin-top: 12px;
-  font-size: 1.8rem;
+  margin-top: 8px;
+  font-size: 1.35rem;
   font-weight: 700;
 }
 
 .card-footer {
-  margin-top: 20px;
+  margin-top: 14px;
 }
 
 .status-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 78px;
-  padding: 6px 10px;
+  min-width: 64px;
+  padding: 4px 8px;
   border-radius: 999px;
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   border: 1px solid transparent;
 }
 
 .status-pill.online {
-  color: #4ade80;
-  border-color: rgba(74, 222, 128, 0.3);
-  background: rgba(20, 83, 45, 0.35);
+  color: #166534;
+  border-color: #bbf7d0;
+  background: #dcfce7;
 }
 
 .status-pill.warning {
-  color: #fbbf24;
-  border-color: rgba(251, 191, 36, 0.3);
-  background: rgba(133, 77, 14, 0.35);
+  color: #92400e;
+  border-color: #fde68a;
+  background: #fef3c7;
 }
 
 .status-pill.idle {
-  color: #93c5fd;
-  border-color: rgba(147, 197, 253, 0.3);
-  background: rgba(30, 64, 175, 0.35);
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+  background: #dbeafe;
 }
 
 .section-header {
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .table-grid {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .table-row {
   display: grid;
   grid-template-columns: 1.4fr 1.2fr 1.2fr 0.6fr 1fr;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
 }
 
 .room-table-row {
@@ -268,119 +269,117 @@ p {
 }
 
 .room-row-highlight {
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
 }
 
 .room-badge {
   display: inline-flex;
   align-items: center;
-  margin-left: 10px;
-  padding: 2px 10px;
+  margin-left: 8px;
+  padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid rgba(147, 197, 253, 0.35);
-  background: rgba(30, 64, 175, 0.28);
-  color: #bfdbfe;
-  font-size: 0.78rem;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.72rem;
   font-weight: 600;
-}
-
-.table-head {
-  color: #a1a1aa;
 }
 
 .key-value-grid {
   display: grid;
-  gap: 14px;
-  margin-top: 20px;
+  gap: 10px;
+  margin-top: 14px;
 }
 
 .key-value-grid div {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fafafa;
+  border: 1px solid #e5e7eb;
 }
 
 .key-value-grid strong {
-  color: #e4e4e7;
+  color: #111827;
 }
 
 .command-log {
-  margin-top: 20px;
-  padding: 18px;
+  margin-top: 14px;
+  padding: 14px;
 }
 
 .command-log-label {
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   font-weight: 600;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .command-log-detail {
   font-family: Consolas, "Courier New", monospace;
   word-break: break-word;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
 }
 
 .mismatch-banner {
-  margin-top: 20px;
-  padding: 18px;
-  border-radius: 18px;
-  border: 1px solid rgba(251, 191, 36, 0.28);
-  background: rgba(133, 77, 14, 0.18);
+  margin-top: 14px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #fde68a;
+  background: #fff7ed;
 }
 
 .mismatch-banner-title {
-  color: #fbbf24;
+  color: #b45309;
   font-weight: 700;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .mismatch-banner-detail {
-  color: #fde68a;
+  color: #92400e;
 }
 
 .settings-page,
 .rooms-page,
 .network-page {
   display: grid;
-  gap: 20px;
+  gap: 12px;
 }
 
 .settings-grid,
 .rooms-actions-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .settings-block {
   display: grid;
-  gap: 12px;
-  padding: 20px;
+  gap: 10px;
+  padding: 14px;
 }
 
 .settings-input {
   width: 100%;
-  padding: 12px 14px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(9, 9, 11, 0.72);
-  color: #fafafa;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
 }
 
 .settings-toggle {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: #e4e4e7;
+  gap: 8px;
+  color: #111827;
 }
 
 .settings-actions {
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 @media (max-width: 1100px) {
@@ -399,7 +398,8 @@ p {
   }
 
   .table-row,
-  .room-table-row {
+  .room-table-row,
+  .room-table-row-extended {
     grid-template-columns: 1fr;
   }
 }

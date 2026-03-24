@@ -14,7 +14,7 @@ export function Sidebar({ items, activeKey, onSelect }: SidebarProps) {
         <div className="brand-mark"><AppIcon /></div>
         <div>
           <div className="brand-title">VNetPlay</div>
-          <div className="brand-subtitle">Rust + Tauri LAN 平台</div>
+          <div className="brand-subtitle">Tauri LAN</div>
         </div>
       </div>
       <nav className="nav-list">
