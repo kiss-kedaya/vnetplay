@@ -27,6 +27,12 @@ button {
   font: inherit;
 }
 
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 320px 1fr;
@@ -86,7 +92,8 @@ button {
 .card-detail,
 .topbar p,
 .eyebrow,
-.card-label {
+.card-label,
+.section-header p {
   color: #a1a1aa;
 }
 
@@ -207,6 +214,46 @@ button {
   background: rgba(30, 64, 175, 0.35);
 }
 
+.section-header {
+  margin-bottom: 20px;
+}
+
+.table-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.table-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1.2fr 1.2fr 0.6fr 1fr;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.table-head {
+  color: #a1a1aa;
+}
+
+.key-value-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.key-value-grid div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.key-value-grid strong {
+  color: #e4e4e7;
+}
+
 @media (max-width: 1100px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -218,5 +265,9 @@ button {
 
   .topbar {
     flex-direction: column;
+  }
+
+  .table-row {
+    grid-template-columns: 1fr;
   }
 }

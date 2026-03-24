@@ -153,6 +153,7 @@
 ## Live progress
 - [x] Repository scaffold, docs, public GitHub repo, and Actions baseline completed.
 - [x] Frontend shell is buildable and follows the Vercel-inspired modular dashboard direction.
-- [x] Rust control server exposes `/health` and `/api/dashboard/summary`.
+- [x] Rust control server exposes `/health`, `/api/dashboard/summary`, `/api/rooms`, `/api/network/status`, and `/api/nodes/heartbeat`.
 - [x] Desktop Rust shell compiles with n2n-related module boundaries in place.
-- [ ] Next pass: room API, node heartbeat ingestion, n2n process execution, and real desktop-client/server wiring.
+- [x] Frontend rooms and network pages now fetch real server-backed data.
+- [ ] Next pass: persist room state, consume heartbeat data, execute real n2n binaries, and wire Tauri commands to the frontend.
