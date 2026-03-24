@@ -52,12 +52,14 @@ struct CreateRoomRequest {
     game: String,
     mode: String,
     username: String,
+    password: Option<String>,
 }
 
 #[derive(Deserialize)]
 struct JoinRoomRequest {
     room_id: String,
     username: String,
+    password: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -136,6 +138,7 @@ async fn create_room(
         payload.mode.trim().to_string(),
         username.to_string(),
     );
+    room.set_password(payload.password);
     room.ensure_participant(username);
     rooms.insert(0, room.clone());
     drop(rooms);
@@ -169,6 +172,10 @@ async fn join_room(
     let mut rooms = state.rooms.lock().expect("rooms mutex poisoned");
 
     if let Some(room) = rooms.iter_mut().find(|item| item.room_id == room_id) {
+        if !room.password_matches(payload.password.as_deref()) {
+            return Err((StatusCode::UNAUTHORIZED, "room password is required or incorrect".to_string()));
+        }
+
         room.ensure_participant(username);
         let updated = room.clone();
         drop(rooms);

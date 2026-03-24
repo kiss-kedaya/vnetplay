@@ -18,6 +18,10 @@ pub struct RoomSummary {
     pub created_at: String,
     #[serde(default = "current_timestamp")]
     pub last_active_at: String,
+    #[serde(default)]
+    pub password: Option<String>,
+    #[serde(default)]
+    pub requires_password: bool,
 }
 
 impl RoomSummary {
@@ -33,6 +37,8 @@ impl RoomSummary {
             participants: Vec::new(),
             created_at: timestamp.clone(),
             last_active_at: timestamp,
+            password: None,
+            requires_password: false,
         }
     }
 
@@ -46,6 +52,18 @@ impl RoomSummary {
 
         if self.host.trim().is_empty() {
             self.host = username.to_string();
+        }
+    }
+
+    pub fn set_password(&mut self, password: Option<String>) {
+        self.password = password.filter(|value| !value.trim().is_empty());
+        self.requires_password = self.password.is_some();
+    }
+
+    pub fn password_matches(&self, password: Option<&str>) -> bool {
+        match self.password.as_deref() {
+            Some(expected) => password.map(|value| value.trim()) == Some(expected),
+            None => true,
         }
     }
 
@@ -63,6 +81,7 @@ impl RoomSummary {
         }
 
         self.members = self.participants.len().max(self.members);
+        self.requires_password = self.password.as_ref().is_some_and(|value| !value.trim().is_empty());
     }
 }
 
@@ -78,6 +97,7 @@ pub fn default_rooms() -> Vec<RoomSummary> {
         "kedaya-vps".to_string(),
         "relay-preferred".to_string(),
     ];
+    first.set_password(Some("123456".to_string()));
     first.normalize();
 
     let mut second = RoomSummary::new(

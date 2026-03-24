@@ -13,7 +13,7 @@ const supernodeAddressKey = "vnetplay.settings.supernode-address";
 const autoConnectOnLaunchKey = "vnetplay.settings.auto-connect-on-launch";
 
 const defaultSettings: AppSettings = {
-  serverBaseUrl: "http://127.0.0.1:9080",
+  serverBaseUrl: "",
   defaultRoomName: "my-new-room",
   defaultCommunity: "vnetplay-room",
   supernodeAddress: "127.0.0.1:7777",
@@ -22,7 +22,7 @@ const defaultSettings: AppSettings = {
 
 function normalizeServerBaseUrl(value: string | null | undefined): string {
   const normalized = value?.trim();
-  return normalized && normalized.length > 0 ? normalized.replace(/\/$/, "") : defaultSettings.serverBaseUrl;
+  return normalized ? normalized.replace(/\/$/, "") : "";
 }
 
 function normalizeRoomName(value: string | null | undefined): string {
