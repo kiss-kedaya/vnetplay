@@ -16,6 +16,14 @@ function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function passwordLabel(room: RoomItem | null): string {
+  if (!room) {
+    return "--";
+  }
+
+  return room.requiresPassword ? "有密码" : "免密码";
+}
+
 export function HomePage({ profile, settings, connectionContext, onUpdateConnectionContext }: HomePageProps) {
   const [serverBaseUrl, setServerBaseUrl] = useState(settings.serverBaseUrl);
   const [roomId, setRoomId] = useState(settings.defaultRoomName);
@@ -141,20 +149,19 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
 
   return (
     <div className="launcher-home compact-room-workspace">
-      <section className="card launcher-hero compact-hero">
-        <div>
-          <div className="eyebrow">好朋友联机工具</div>
-          <h2>服务器、房间、加入，全部放在这一页</h2>
-          <p>只保留联机必需操作，不再让用户在多个主页面之间切换。</p>
+      <section className="card launcher-hero compact-hero compact-hero-slim">
+        <div className="compact-hero-copy">
+          <div className="eyebrow">联机</div>
+          <h2>服务器和房间都在这一页</h2>
         </div>
-        <div className="launcher-hero-meta">
-          <span>当前玩家：{profile.username}</span>
-          <span>当前设备：{profile.machineLabel}</span>
+        <div className="launcher-hero-meta compact-hero-meta">
+          <span>玩家：{profile.username}</span>
+          <span>设备：{profile.machineLabel}</span>
         </div>
       </section>
 
       <section className="card launcher-main-card compact-stack-card">
-        <div className="section-header">
+        <div className="section-header compact-section-header">
           <h2>1. 服务器</h2>
           <p>先填服务器地址，再读取已有房间或直接创建。</p>
         </div>
@@ -166,7 +173,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
 
       <section className="compact-room-grid">
         <div className="card launcher-main-card compact-stack-card">
-          <div className="section-header">
+          <div className="section-header compact-section-header">
             <h2>2. 新建房间</h2>
             <p>自己当房主，设置房间名后直接进入。</p>
           </div>
@@ -176,7 +183,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
         </div>
 
         <div className="card launcher-main-card compact-stack-card">
-          <div className="section-header">
+          <div className="section-header compact-section-header">
             <h2>3. 选择并加入</h2>
             <p>先点上面的“查看服务器房间”，再选房间输入密码加入。</p>
           </div>
@@ -195,12 +202,14 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
                     <span className="room-picker-head">
                       <span className="room-picker-title">{room.roomId}</span>
                       <span className="room-picker-badges">
+                        <span className={`room-picker-badge password ${room.requiresPassword ? "locked" : "open"}`}>
+                          {room.requiresPassword ? "有密码" : "免密码"}
+                        </span>
                         {connected ? <span className="room-picker-badge connected">当前连接</span> : null}
                         {active ? <span className="room-picker-badge active">已选中</span> : null}
                       </span>
                     </span>
-                    <span className="room-picker-meta">{room.members} 人 · {room.requiresPassword ? "需要密码" : "免密码"}</span>
-                    <span className="room-picker-meta">房主：{room.host}</span>
+                    <span className="room-picker-meta">{room.members} 人 · 房主：{room.host}</span>
                   </button>
                 );
               })
@@ -214,23 +223,19 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
       </section>
 
       <section className="card launcher-status-card compact-status-card">
-        <div className="section-header">
+        <div className="section-header compact-section-header">
           <h2>4. 当前状态</h2>
-          <p>当前连接和已选房间都合并在这里，避免信息分散。</p>
+          <p>只保留当前最有用的信息。</p>
         </div>
-        <div className="key-value-grid compact-key-value-grid">
+        <div className="key-value-grid compact-key-value-grid compact-status-grid">
           <div><strong>当前房间</strong><span>{connectionContext.roomId}</span></div>
-          <div><strong>当前玩家</strong><span>{profile.username}</span></div>
-          <div><strong>服务器地址</strong><span>{serverBaseUrl || "未填写"}</span></div>
           <div><strong>连接状态</strong><span>{connectionContext.success ? "已准备" : "未连接"}</span></div>
+          <div><strong>服务器</strong><span>{serverBaseUrl || "未填写"}</span></div>
           <div><strong>已选房间</strong><span>{selectedRoom?.roomId || "未选择"}</span></div>
-          <div><strong>房间人数</strong><span>{selectedRoom ? String(selectedRoom.members) : "--"}</span></div>
-          <div><strong>密码要求</strong><span>{selectedRoom ? (selectedRoom.requiresPassword ? "需要密码" : "无需密码") : "--"}</span></div>
-          <div><strong>房主</strong><span>{selectedRoom?.host || "--"}</span></div>
-          <div><strong>房主设备</strong><span>{selectedRoom?.hostId || "--"}</span></div>
-          <div><strong>成员</strong><span>{selectedRoom?.participants.join(" / ") || "--"}</span></div>
+          <div><strong>人数</strong><span>{selectedRoom ? String(selectedRoom.members) : "--"}</span></div>
+          <div><strong>密码</strong><span>{passwordLabel(selectedRoom)}</span></div>
         </div>
-        <div className="command-log card-subtle">
+        <div className="command-log card-subtle compact-command-log">
           <div className="command-log-label">提示</div>
           <div className="command-log-detail">{feedback}</div>
         </div>

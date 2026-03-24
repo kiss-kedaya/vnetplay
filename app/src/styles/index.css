@@ -245,6 +245,10 @@ p {
   margin-bottom: 14px;
 }
 
+.compact-section-header {
+  margin-bottom: 10px;
+}
+
 .table-grid {
   display: grid;
   gap: 8px;
@@ -306,9 +310,21 @@ p {
   color: #111827;
 }
 
+.compact-key-value-grid {
+  margin-top: 0;
+}
+
+.compact-status-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .command-log {
   margin-top: 14px;
   padding: 14px;
+}
+
+.compact-command-log {
+  margin-top: 0;
 }
 
 .command-log-label {
@@ -387,10 +403,20 @@ p {
   gap: 12px;
 }
 
+.compact-room-workspace {
+  gap: 10px;
+}
+
 .launcher-hero,
 .launcher-main-card,
 .launcher-status-card {
   padding: 18px;
+}
+
+.compact-hero,
+.compact-stack-card,
+.compact-status-card {
+  padding: 16px;
 }
 
 .launcher-hero {
@@ -414,6 +440,26 @@ p {
   flex-wrap: wrap;
   color: #6b7280;
   font-size: 0.9rem;
+}
+
+.compact-hero-slim {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.compact-hero-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.compact-hero-slim h2 {
+  font-size: 1.12rem;
+}
+
+.compact-hero-meta {
+  font-size: 0.84rem;
 }
 
 .launcher-main-grid,
@@ -473,6 +519,60 @@ p {
   background: #f3f4f6;
 }
 
+.room-picker-card.connected {
+  border-color: #bfdbfe;
+  background: #f8fbff;
+}
+
+.room-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.room-picker-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.room-picker-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #4b5563;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.room-picker-badge.connected {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.room-picker-badge.active {
+  border-color: #d1d5db;
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.room-picker-badge.password.locked {
+  border-color: #fde68a;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.room-picker-badge.password.open {
+  border-color: #bbf7d0;
+  background: #dcfce7;
+  color: #166534;
+}
+
 .room-picker-title {
   font-weight: 700;
 }
@@ -504,7 +604,9 @@ p {
   .rooms-actions-grid,
   .launcher-main-grid,
   .launcher-status-grid,
-  .launcher-helper-grid {
+  .launcher-helper-grid,
+  .compact-room-grid,
+  .compact-status-grid {
     grid-template-columns: 1fr;
   }
 
@@ -513,47 +615,6 @@ p {
   .room-picker-head {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .table-row,
-  .room-table-row,
-  .room-table-row-extended {
-    grid-template-columns: 1fr;
-  }
-}
-a {
-  color: #6b7280;
-  font-size: 0.88rem;
-}
-
-.launcher-empty {
-  padding: 14px;
-  border: 1px dashed #d1d5db;
-  border-radius: 10px;
-  color: #6b7280;
-  background: #fafafa;
-}
-
-.launcher-helper-card {
-  padding: 14px;
-}
-
-@media (max-width: 1100px) {
-  .app-shell {
-    grid-template-columns: 1fr;
-  }
-
-  .page-grid,
-  .settings-grid,
-  .rooms-actions-grid,
-  .launcher-main-grid,
-  .launcher-status-grid,
-  .launcher-helper-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .topbar {
-    flex-direction: column;
   }
 
   .table-row,
