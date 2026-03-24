@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 type InfoCardProps = {
   title: string;
@@ -9,11 +10,15 @@ type InfoCardProps = {
 
 export function InfoCard({ title, value, detail, footer }: InfoCardProps) {
   return (
-    <section className="card info-card">
-      <div className="card-label">{title}</div>
-      <div className="card-value">{value}</div>
-      <div className="card-detail">{detail}</div>
-      {footer ? <div className="card-footer">{footer}</div> : null}
-    </section>
+    <Card>
+      <CardHeader className="pb-3">
+        <CardDescription className="text-xs uppercase tracking-wide">{title}</CardDescription>
+        <CardTitle className="text-2xl">{value}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-sm text-gray-500 mb-3">{detail}</p>
+        {footer}
+      </CardContent>
+    </Card>
   );
 }

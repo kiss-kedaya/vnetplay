@@ -19,6 +19,8 @@ fn default_source() -> String {
     "server".to_string()
 }
 
+const MAX_RECENT_ACTIONS: usize = 80;
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RecentAction {
     pub action: String,
@@ -67,6 +69,7 @@ pub struct AppState {
     pub rooms: Arc<Mutex<Vec<RoomSummary>>>,
     pub heartbeats: Arc<Mutex<HashMap<String, NodeHeartbeat>>>,
     pub recent_action: Arc<Mutex<RecentAction>>,
+    pub recent_actions: Arc<Mutex<Vec<RecentAction>>>,
     pub profile: Arc<NetworkProfile>,
     pub state_path: Arc<PathBuf>,
 }
@@ -80,6 +83,7 @@ impl AppState {
             rooms: Arc::new(Mutex::new(persisted.rooms)),
             heartbeats: Arc::new(Mutex::new(persisted.heartbeats)),
             recent_action: Arc::new(Mutex::new(persisted.recent_action)),
+            recent_actions: Arc::new(Mutex::new(persisted.recent_actions)),
             profile: Arc::new(NetworkProfile {
                 community: "vnetplay-room".to_string(),
                 secret_masked: "********".to_string(),
@@ -94,7 +98,15 @@ impl AppState {
             .recent_action
             .lock()
             .expect("recent_action mutex poisoned");
-        *recent = action;
+        *recent = action.clone();
+        drop(recent);
+
+        let mut history = self
+            .recent_actions
+            .lock()
+            .expect("recent_actions mutex poisoned");
+        history.insert(0, action);
+        history.truncate(MAX_RECENT_ACTIONS);
     }
 
     pub fn persist(&self) {
@@ -109,6 +121,11 @@ impl AppState {
             .lock()
             .expect("recent_action mutex poisoned")
             .clone();
+        let recent_actions = self
+            .recent_actions
+            .lock()
+            .expect("recent_actions mutex poisoned")
+            .clone();
 
         save_state(
             &self.state_path,
@@ -116,6 +133,7 @@ impl AppState {
                 rooms,
                 heartbeats,
                 recent_action,
+                recent_actions,
             },
         );
     }

@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { fetchNetworkStatus, syncRecentAction, type NetworkStatus } from "../../lib/api/network";
+import { Play, Square, RefreshCw } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { EventTimeline } from "../../components/runtime/EventTimeline";
+import { StatusPill } from "../../components/status/StatusPill";
+import {
+  fetchNetworkStatus,
+  fetchRecentActionsHistory,
+  syncRecentAction,
+  type NetworkStatus,
+  type RecentAction,
+} from "../../lib/api/network";
 import {
   inspectNetworkBridge,
   startNetworkBridge,
@@ -9,6 +21,8 @@ import {
 } from "../../lib/desktop/bridge";
 import type { UserProfile } from "../../lib/profile/userProfile";
 import type { ConnectionContext } from "../../lib/runtime/connectionContext";
+import { appendRuntimeEvent, resolveRuntimeEvents, type RuntimeEvent } from "../../lib/runtime/runtimeEvents";
+import { useLiveRefresh } from "../../lib/runtime/useLiveRefresh";
 import type { AppSettings } from "../../lib/settings/appSettings";
 
 const fallbackStatus: NetworkStatus = {
@@ -61,14 +75,96 @@ type NetworkPageProps = {
   settings: AppSettings;
   connectionContext: ConnectionContext;
   onUpdateConnectionContext: (context: ConnectionContext) => void;
+  startRequest: { id: number; roomId: string; serverBaseUrl: string; mode: "resume" } | null;
+  onConsumeStartRequest: (id: number) => void;
 };
 
-export function NetworkPage({ profile, settings, connectionContext, onUpdateConnectionContext }: NetworkPageProps) {
-  const [status, setStatus] = useState<NetworkStatus>(fallbackStatus);
-  const [commandResult, setCommandResult] = useState<DesktopCommandResult>(idleResult);
-  const autoConnectTriggeredRef = useRef(false);
+function edgeTone(result: DesktopCommandResult, inspect: InspectSnapshot): "online" | "warning" | "idle" {
+  if (!result.ok) {
+    return "warning";
+  }
 
-  const inspect = useMemo(() => commandResult.inspect ?? idleInspect, [commandResult.inspect]);
+  return inspect.edgeState === "running" ? "online" : "idle";
+}
+
+function edgeLabel(result: DesktopCommandResult, inspect: InspectSnapshot): string {
+  if (!result.ok) {
+    return "异常";
+  }
+
+  return inspect.edgeState === "running" ? "在线" : "待机";
+}
+
+function compactTime(value: string): string {
+  if (value === "--") {
+    return value;
+  }
+
+  const parts = value.split(" ");
+  return parts[parts.length - 1] ?? value;
+}
+
+function formatServerTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleString("zh-CN", { hour12: false });
+}
+
+function mapActionHistoryToEvents(actions: RecentAction[]): RuntimeEvent[] {
+  return actions.map((action, index) => {
+    const createdAtMs = Date.parse(action.updatedAt);
+    return {
+      id: `${action.updatedAt}-${action.action}-${action.roomId}-${index}`,
+      scope: "server" as const,
+      title: action.action,
+      detail: action.detail,
+      tone: action.action === "idle" ? "idle" : action.success ? "online" : "warning",
+      roomId: action.roomId,
+      source: action.source,
+      createdAt: formatServerTime(action.updatedAt),
+      createdAtMs: Number.isNaN(createdAtMs) ? 0 : createdAtMs,
+    };
+  });
+}
+
+export function NetworkPage({ profile, settings, connectionContext, onUpdateConnectionContext, startRequest, onConsumeStartRequest }: NetworkPageProps) {
+  const [status, setStatus] = useState<NetworkStatus>(fallbackStatus);
+  const [actionHistory, setActionHistory] = useState<RecentAction[]>([]);
+  const [commandResult, setCommandResult] = useState<DesktopCommandResult>(idleResult);
+  const [inspectResult, setInspectResult] = useState<DesktopCommandResult>(idleResult);
+  const [liveUpdatedAt, setLiveUpdatedAt] = useState("--");
+  const [liveTone, setLiveTone] = useState<"online" | "warning" | "idle">("idle");
+  const [liveLabel, setLiveLabel] = useState("待机");
+  const [events, setEvents] = useState<RuntimeEvent[]>(() => resolveRuntimeEvents());
+  const autoConnectTriggeredRef = useRef(false);
+  const edgeSignatureRef = useRef("");
+  const serverSignatureRef = useRef("");
+
+  const inspect = useMemo(() => inspectResult.inspect ?? commandResult.inspect ?? idleInspect, [inspectResult.inspect, commandResult.inspect]);
+  const runtimeTone = edgeTone(inspectResult, inspect);
+  const runtimeLabel = edgeLabel(inspectResult, inspect);
+  const syncTone = status.recentAction.source.startsWith("desktop")
+    ? (status.recentAction.success ? "online" : "warning")
+    : "idle";
+  const syncLabel = status.recentAction.source.startsWith("desktop")
+    ? (status.recentAction.success ? "已回写" : "回写失败")
+    : "待回写";
+  const recentEvents = events.slice(0, 8);
+  const serverHistoryEvents = useMemo(() => mapActionHistoryToEvents(actionHistory.slice(0, 8)), [actionHistory]);
+
+  const stats = [
+    { label: "Edge", value: runtimeLabel, meta: `PID ${inspect.lastPid ?? "n/a"}` },
+    { label: "房间", value: settings.defaultRoomName, meta: profile.username },
+    { label: "线路", value: status.latency, meta: status.routeMode },
+    { label: "时长", value: inspect.runtimeDurationLabel, meta: liveUpdatedAt === "--" ? status.overlayIp : compactTime(liveUpdatedAt) },
+  ];
+
+  function recordEvent(input: Parameters<typeof appendRuntimeEvent>[0]) {
+    setEvents(appendRuntimeEvent(input));
+  }
 
   async function refreshStatus() {
     const nextStatus = await fetchNetworkStatus();
@@ -76,11 +172,11 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     return nextStatus;
   }
 
-  async function syncActionToServer(action: string, result: DesktopCommandResult, source: string) {
+  async function syncActionToServer(action: string, result: DesktopCommandResult, source: string, roomId: string) {
     try {
       const recentAction = await syncRecentAction({
         action,
-        roomId: settings.defaultRoomName,
+        roomId,
         username: profile.username,
         detail: result.detail,
         success: result.ok,
@@ -97,70 +193,181 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     }
   }
 
+  function syncConnectionFromInspect(result: DesktopCommandResult, source: ConnectionContext["source"]) {
+    const snapshot = result.inspect ?? idleInspect;
+    const running = result.ok && snapshot.edgeState === "running" && snapshot.pidAlive;
+    const nextRoomId = snapshot.roomId !== "--"
+      ? snapshot.roomId
+      : connectionContext.roomId !== "未连接"
+        ? connectionContext.roomId
+        : "未连接";
+
+    onUpdateConnectionContext({
+      roomId: nextRoomId,
+      username: profile.username,
+      serverBaseUrl: settings.serverBaseUrl,
+      success: running,
+      detail: result.detail,
+      pid: snapshot.pidAlive ? (result.pid ?? snapshot.lastPid ?? null) : null,
+      source,
+      updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+      runtimeDurationLabel: snapshot.runtimeDurationLabel,
+    });
+  }
+
+  async function refreshLiveSnapshot(source: ConnectionContext["source"] = "inspect") {
+    const [nextStatus, nextInspect, nextHistory] = await Promise.all([
+      fetchNetworkStatus(),
+      inspectNetworkBridge(),
+      fetchRecentActionsHistory(),
+    ]);
+
+    const nextSnapshot = nextInspect.inspect ?? idleInspect;
+    const nextEdgeSignature = `${nextSnapshot.edgeState}:${nextSnapshot.pidAlive}:${nextSnapshot.lastPid ?? "n/a"}:${nextSnapshot.roomId}`;
+    const nextServerSignature = `${nextStatus.recentAction.action}:${nextStatus.recentAction.updatedAt}:${nextStatus.recentAction.pid ?? "n/a"}:${nextStatus.recentAction.success}`;
+
+    if (edgeSignatureRef.current && edgeSignatureRef.current !== nextEdgeSignature) {
+      recordEvent({
+        scope: "network",
+        title: "Edge 变化",
+        detail: `${nextSnapshot.edgeState} · ${nextSnapshot.pidAlive ? "alive" : "idle"}`,
+        tone: nextSnapshot.edgeState === "running" && nextSnapshot.pidAlive ? "online" : "idle",
+        roomId: nextSnapshot.roomId !== "--" ? nextSnapshot.roomId : settings.defaultRoomName,
+        source: "poll-edge",
+      });
+    }
+
+    if (serverSignatureRef.current && serverSignatureRef.current !== nextServerSignature) {
+      recordEvent({
+        scope: "server",
+        title: "服务端动作",
+        detail: `${nextStatus.recentAction.action} · ${nextStatus.recentAction.roomId}`,
+        tone: nextStatus.recentAction.success ? "online" : "warning",
+        roomId: nextStatus.recentAction.roomId,
+        source: nextStatus.recentAction.source,
+      });
+    }
+
+    edgeSignatureRef.current = nextEdgeSignature;
+    serverSignatureRef.current = nextServerSignature;
+
+    setStatus(nextStatus);
+    setActionHistory(nextHistory);
+    setInspectResult(nextInspect);
+    setLiveTone(edgeTone(nextInspect, nextInspect.inspect ?? idleInspect));
+    setLiveLabel(edgeLabel(nextInspect, nextInspect.inspect ?? idleInspect));
+    setLiveUpdatedAt(new Date().toLocaleString("zh-CN", { hour12: false }));
+    syncConnectionFromInspect(nextInspect, source);
+  }
+
   useEffect(() => {
-    refreshStatus();
+    void refreshLiveSnapshot();
   }, [settings.serverBaseUrl]);
 
-  async function handleStartNetwork(trigger: "manual" | "auto" = "manual") {
+  useLiveRefresh({
+    enabled: true,
+    intervalMs: 5000,
+    runImmediately: false,
+    onRefresh: async () => {
+      await refreshLiveSnapshot();
+    },
+  });
+
+  async function handleStartNetwork(trigger: "manual" | "auto" | "resume" = "manual", roomIdOverride?: string, serverBaseUrlOverride?: string) {
+    autoConnectTriggeredRef.current = true;
+    const targetRoomId = roomIdOverride ?? settings.defaultRoomName;
+    const targetServerBaseUrl = serverBaseUrlOverride ?? settings.serverBaseUrl;
     const result = await startNetworkBridge({
-      roomId: settings.defaultRoomName,
+      roomId: targetRoomId,
       username: profile.username,
       community: settings.defaultCommunity,
       supernode: settings.supernodeAddress,
     });
 
-    const detail = trigger === "auto" ? `auto-connect: ${result.detail}` : result.detail;
+    const detail = trigger === "auto" ? `自动：${result.detail}` : trigger === "resume" ? `继续：${result.detail}` : result.detail;
     const finalResult = {
       ...result,
       detail,
     };
+    const running = result.ok && (finalResult.inspect?.edgeState === "running" || finalResult.inspect == null);
+    recordEvent({
+      scope: "network",
+      title: trigger === "auto" ? "自动启动" : trigger === "resume" ? "继续联机" : "手动启动",
+      detail,
+      tone: running ? "online" : "warning",
+      roomId: targetRoomId,
+      source: trigger === "auto" ? "desktop-auto" : trigger === "resume" ? "desktop-resume" : "desktop-manual",
+    });
     setCommandResult(finalResult);
-    await syncActionToServer(trigger === "auto" ? "desktop-auto-start" : "desktop-start", finalResult, trigger === "auto" ? "desktop-auto" : "desktop-manual");
+    setInspectResult(finalResult);
+    await syncActionToServer(trigger === "auto" ? "desktop-auto-start" : trigger === "resume" ? "desktop-resume-start" : "desktop-start", finalResult, trigger === "auto" ? "desktop-auto" : trigger === "resume" ? "desktop-resume" : "desktop-manual", targetRoomId);
     onUpdateConnectionContext({
-      roomId: settings.defaultRoomName,
+      roomId: targetRoomId,
       username: profile.username,
-      serverBaseUrl: settings.serverBaseUrl,
-      success: result.ok,
+      serverBaseUrl: targetServerBaseUrl,
+      success: running,
       detail,
       pid: result.pid ?? null,
-      source: trigger === "auto" ? "auto-start" : "manual-start",
+      source: trigger === "auto" ? "auto-start" : trigger === "resume" ? "resume" : "manual-start",
       updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
       runtimeDurationLabel: finalResult.inspect?.runtimeDurationLabel ?? "idle",
     });
+    await refreshLiveSnapshot(trigger === "auto" ? "auto-start" : trigger === "resume" ? "resume" : "manual-start");
   }
 
   async function handleStopNetwork() {
     const result = await stopNetworkBridge();
+    recordEvent({
+      scope: "network",
+      title: result.ok ? "已停止" : "停止失败",
+      detail: result.detail,
+      tone: result.ok ? "idle" : "warning",
+      roomId: settings.defaultRoomName,
+      source: "desktop-manual",
+    });
     setCommandResult(result);
-    await syncActionToServer("desktop-stop", result, "desktop-manual");
+    setInspectResult(result);
+    await syncActionToServer("desktop-stop", result, "desktop-manual", settings.defaultRoomName);
     onUpdateConnectionContext({
       roomId: settings.defaultRoomName,
       username: profile.username,
       serverBaseUrl: settings.serverBaseUrl,
-      success: result.ok,
+      success: false,
       detail: result.detail,
       pid: result.pid ?? null,
       source: "stop",
       updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
       runtimeDurationLabel: result.inspect?.runtimeDurationLabel ?? "idle",
     });
+    await refreshLiveSnapshot("stop");
   }
 
   async function handleInspectNetwork() {
     const result = await inspectNetworkBridge();
+    const running = result.ok && Boolean(result.inspect?.pidAlive) && result.inspect?.edgeState === "running";
+    recordEvent({
+      scope: "network",
+      title: result.ok ? "检查完成" : "检查失败",
+      detail: result.detail,
+      tone: result.ok ? (running ? "online" : "idle") : "warning",
+      roomId: settings.defaultRoomName,
+      source: "desktop-manual",
+    });
     setCommandResult(result);
-    await syncActionToServer("desktop-inspect", result, "desktop-manual");
+    setInspectResult(result);
+    await syncActionToServer("desktop-inspect", result, "desktop-manual", settings.defaultRoomName);
     onUpdateConnectionContext({
       roomId: settings.defaultRoomName,
       username: profile.username,
       serverBaseUrl: settings.serverBaseUrl,
-      success: result.ok,
+      success: running,
       detail: result.detail,
       pid: result.inspect?.pidAlive ? (result.pid ?? null) : null,
       source: "inspect",
       updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
       runtimeDurationLabel: result.inspect?.runtimeDurationLabel ?? "idle",
     });
+    await refreshLiveSnapshot("inspect");
   }
 
   useEffect(() => {
@@ -169,82 +376,167 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     }
 
     autoConnectTriggeredRef.current = true;
-    handleStartNetwork("auto");
+    void handleStartNetwork("auto");
   }, [settings.autoConnectOnLaunch, settings.defaultRoomName, settings.defaultCommunity, settings.supernodeAddress, profile.username]);
 
+  useEffect(() => {
+    if (!startRequest) {
+      return;
+    }
+
+    void handleStartNetwork(startRequest.mode, startRequest.roomId, startRequest.serverBaseUrl)
+      .finally(() => {
+        onConsumeStartRequest(startRequest.id);
+      });
+  }, [startRequest]);
+
   return (
-    <section className="card page-card network-page">
-      <div className="section-header">
-        <h2>网络状态</h2>
-        <p>n2n edge、supernode 路径和当前链路质量都在这里收口展示。启动网络时会自动带当前用户名 {profile.username}、默认房间 {settings.defaultRoomName}、community {settings.defaultCommunity} 和 supernode {settings.supernodeAddress}。</p>
+    <div className="space-y-6">
+      {/* 状态概览 */}
+      <div className="grid grid-cols-4 gap-4">
+        {stats.map((item) => (
+          <Card key={item.label}>
+            <CardContent className="pt-6">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">{item.label}</p>
+              <p className="text-2xl font-semibold mb-1">{item.value}</p>
+              <p className="text-sm text-gray-500">{item.meta}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
-      <div className="card-subtle settings-block">
-        <div className="settings-label">启动上下文预览</div>
-        <div className="settings-value">{profile.username} @ {settings.defaultRoomName}</div>
-        <div className="settings-meta">Community：{settings.defaultCommunity} · Supernode：{settings.supernodeAddress}</div>
-        <div className="settings-meta">服务端：{settings.serverBaseUrl} · 自动连接：{settings.autoConnectOnLaunch ? "已开启" : "未开启"}</div>
+
+      {/* 控制面板 */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>控制台</CardTitle>
+              <CardDescription>启动、停止、检查网络连接</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <StatusPill tone={runtimeTone} text={runtimeLabel} />
+              <span className="text-sm text-gray-500">轮询 5s · {liveUpdatedAt}</span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-2">
+            <Button onClick={() => handleStartNetwork("manual")}>
+              <Play className="w-4 h-4 mr-2" />
+              启动
+            </Button>
+            <Button variant="outline" onClick={handleStopNetwork}>
+              <Square className="w-4 h-4 mr-2" />
+              停止
+            </Button>
+            <Button variant="outline" onClick={handleInspectNetwork}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              检查
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="key-value-item">
+              <span className="text-sm text-gray-500">用户</span>
+              <span className="text-sm font-medium">{profile.username}</span>
+            </div>
+            <div className="key-value-item">
+              <span className="text-sm text-gray-500">房间</span>
+              <span className="text-sm font-medium">{settings.defaultRoomName}</span>
+            </div>
+            <div className="key-value-item">
+              <span className="text-sm text-gray-500">群组</span>
+              <span className="text-sm font-medium">{settings.defaultCommunity}</span>
+            </div>
+            <div className="key-value-item">
+              <span className="text-sm text-gray-500">节点</span>
+              <span className="text-sm font-medium">{settings.supernodeAddress}</span>
+            </div>
+            <div className="key-value-item">
+              <span className="text-sm text-gray-500">自动</span>
+              <span className="text-sm font-medium">{settings.autoConnectOnLaunch ? "开" : "关"}</span>
+            </div>
+            <div className="key-value-item">
+              <span className="text-sm text-gray-500">服务端</span>
+              <span className="text-sm font-medium truncate">{settings.serverBaseUrl || "未填"}</span>
+            </div>
+          </div>
+
+          <div className="p-3 bg-gray-100 rounded-lg">
+            <p className="text-sm text-gray-600">{commandResult.detail}</p>
+            <p className="text-xs text-gray-500 mt-1">
+              状态: {commandResult.ok ? "success" : "error"} | PID: {commandResult.pid ?? "n/a"} | 存活: {inspect.pidAlive ? "alive" : "idle/stale"}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 本机和服务端信息 */}
+      <div className="grid grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>本机状态</CardTitle>
+              <StatusPill tone={runtimeTone} text={runtimeLabel} />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="key-value-grid">
+              <div className="key-value-item"><span>IP</span><span>{status.overlayIp}</span></div>
+              <div className="key-value-item"><span>中继</span><span>{status.relay}</span></div>
+              <div className="key-value-item"><span>模式</span><span>{status.routeMode}</span></div>
+              <div className="key-value-item"><span>Edge</span><span>{inspect.edgeState}</span></div>
+              <div className="key-value-item"><span>命令</span><span>{inspect.lastCommand}</span></div>
+              <div className="key-value-item"><span>启动于</span><span>{inspect.runtimeStartedAt}</span></div>
+              <div className="key-value-item"><span>PID</span><span>{inspect.lastPid ?? "n/a"}</span></div>
+              <div className="key-value-item"><span>存活</span><span>{inspect.pidAlive ? "alive" : "idle"}</span></div>
+              <div className="key-value-item"><span>时长</span><span>{inspect.runtimeDurationLabel}</span></div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>服务端状态</CardTitle>
+              <StatusPill tone={syncTone} text={syncLabel} />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="key-value-grid">
+              <div className="key-value-item"><span>动作</span><span>{status.recentAction.action}</span></div>
+              <div className="key-value-item"><span>房间</span><span>{status.recentAction.roomId}</span></div>
+              <div className="key-value-item"><span>用户</span><span>{status.recentAction.username}</span></div>
+              <div className="key-value-item"><span>来源</span><span>{status.recentAction.source}</span></div>
+              <div className="key-value-item"><span>PID</span><span>{status.recentAction.pid ?? "n/a"}</span></div>
+              <div className="key-value-item"><span>时间</span><span>{status.recentAction.updatedAt}</span></div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-      <div className="network-actions">
-        <button className="primary-button" type="button" onClick={() => handleStartNetwork("manual")}>
-          启动网络
-        </button>
-        <button className="ghost-button" type="button" onClick={handleStopNetwork}>
-          停止网络
-        </button>
-        <button className="ghost-button" type="button" onClick={handleInspectNetwork}>
-          检查命令
-        </button>
+
+      {/* 事件时间线 */}
+      <div className="grid grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>服务端历史</CardTitle>
+            <CardDescription>最近回写记录</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EventTimeline events={serverHistoryEvents} emptyLabel="还没有服务端记录。" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>本地时间线</CardTitle>
+            <CardDescription>最近操作记录</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EventTimeline events={recentEvents} emptyLabel="还没有网络记录。" />
+          </CardContent>
+        </Card>
       </div>
-      <div className="key-value-grid">
-        <div><strong>虚拟 IP</strong><span>{status.overlayIp}</span></div>
-        <div><strong>中继</strong><span>{status.relay}</span></div>
-        <div><strong>路由模式</strong><span>{status.routeMode}</span></div>
-        <div><strong>edge 状态</strong><span>{status.edgeState}</span></div>
-        <div><strong>延迟</strong><span>{status.latency}</span></div>
-      </div>
-      <div className="card-subtle settings-block">
-        <div className="settings-label">桌面 inspect 结果</div>
-        <div className="key-value-grid">
-          <div><strong>房间</strong><span>{inspect.roomId}</span></div>
-          <div><strong>用户名</strong><span>{inspect.username}</span></div>
-          <div><strong>Community</strong><span>{inspect.community}</span></div>
-          <div><strong>Supernode</strong><span>{inspect.supernode}</span></div>
-          <div><strong>edge 状态</strong><span>{inspect.edgeState}</span></div>
-          <div><strong>最后命令</strong><span>{inspect.lastCommand}</span></div>
-          <div><strong>Runtime 启动</strong><span>{inspect.runtimeStartedAt}</span></div>
-          <div><strong>最近启动</strong><span>{inspect.lastStartedAt}</span></div>
-          <div><strong>最近停止</strong><span>{inspect.lastStoppedAt}</span></div>
-          <div><strong>最近 PID</strong><span>{inspect.lastPid ?? "n/a"}</span></div>
-          <div><strong>PID 存活</strong><span>{inspect.pidAlive ? "alive" : "stale"}</span></div>
-          <div><strong>运行时长</strong><span>{inspect.runtimeDurationLabel}</span></div>
-        </div>
-        <div className="command-log">
-          <div className="command-log-label">命令预览</div>
-          <div className="command-log-detail">{inspect.commandPreview}</div>
-        </div>
-      </div>
-      <div className="command-log card-subtle">
-        <div className="command-log-label">桌面命令结果</div>
-        <div className="command-log-detail">{commandResult.detail}</div>
-        <div className="command-log-meta">状态: {commandResult.ok ? "success" : "error"} | PID: {commandResult.pid ?? "n/a"} | 存活: {inspect.pidAlive ? "alive" : "cleaned/idle"} | 运行时长: {inspect.runtimeDurationLabel}</div>
-      </div>
-      <div className="card-subtle settings-block">
-        <div className="settings-label">服务端 recent action</div>
-        <div className="key-value-grid">
-          <div><strong>动作</strong><span>{status.recentAction.action}</span></div>
-          <div><strong>房间</strong><span>{status.recentAction.roomId}</span></div>
-          <div><strong>用户</strong><span>{status.recentAction.username}</span></div>
-          <div><strong>来源</strong><span>{status.recentAction.source}</span></div>
-          <div><strong>PID</strong><span>{status.recentAction.pid ?? "n/a"}</span></div>
-          <div><strong>时间</strong><span>{status.recentAction.updatedAt}</span></div>
-          <div><strong>状态</strong><span>{status.recentAction.success ? "success" : "error"}</span></div>
-          <div><strong>当前连接记录</strong><span>{connectionContext.roomId}</span></div>
-        </div>
-        <div className="command-log">
-          <div className="command-log-label">服务端 recent action 详情</div>
-          <div className="command-log-detail">{status.recentAction.detail}</div>
-        </div>
-      </div>
-    </section>
+    </div>
   );
 }

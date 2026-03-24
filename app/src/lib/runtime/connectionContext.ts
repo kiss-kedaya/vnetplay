@@ -5,7 +5,7 @@ export type ConnectionContext = {
   success: boolean;
   detail: string;
   pid: number | null;
-  source: "manual-start" | "auto-start" | "stop" | "inspect";
+  source: "manual-start" | "auto-start" | "resume" | "stop" | "inspect";
   updatedAt: string;
   runtimeDurationLabel: string;
 };
@@ -16,7 +16,7 @@ const defaultContext: ConnectionContext = {
   roomId: "未连接",
   username: "player",
   serverBaseUrl: "http://127.0.0.1:9080",
-  success: true,
+  success: false,
   detail: "尚未执行网络命令",
   pid: null,
   source: "inspect",

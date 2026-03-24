@@ -41,6 +41,11 @@ struct NetworkStatus {
 }
 
 #[derive(Serialize)]
+struct RecentActionList {
+    items: Vec<RecentAction>,
+}
+
+#[derive(Serialize)]
 struct HeartbeatResponse {
     accepted: bool,
     node_id: String,
@@ -276,6 +281,16 @@ async fn sync_recent_action(
     Ok(Json(recent_action))
 }
 
+async fn recent_actions(State(state): State<AppState>) -> Json<RecentActionList> {
+    let items = state
+        .recent_actions
+        .lock()
+        .expect("recent_actions mutex poisoned")
+        .clone();
+
+    Json(RecentActionList { items })
+}
+
 async fn node_heartbeat(
     State(state): State<AppState>,
     Json(payload): Json<NodeHeartbeat>,
@@ -313,6 +328,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/rooms/create", post(create_room))
         .route("/api/rooms/join", post(join_room))
         .route("/api/network/status", get(network_status))
+        .route("/api/network/actions", get(recent_actions))
         .route("/api/network/action", post(sync_recent_action))
         .route("/api/nodes/heartbeat", post(node_heartbeat))
         .with_state(state)

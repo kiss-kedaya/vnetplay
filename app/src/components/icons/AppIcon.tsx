@@ -1,7 +1,9 @@
 export function AppIcon() {
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" className="icon">
-      <path d="M4 7.5h16M7.5 4v16M16.5 4v16M4 16.5h16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <rect x="3.5" y="5" width="17" height="14" rx="3.2" fill="none" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M7.5 10.5h9M7.5 14.5h5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="17.2" cy="14.5" r="1.3" fill="currentColor" />
     </svg>
   );
 }

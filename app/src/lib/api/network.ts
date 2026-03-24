@@ -33,6 +33,10 @@ export type SyncRecentActionPayload = {
   pid: number | null;
 };
 
+type RecentActionListResponse = {
+  items?: Record<string, unknown>[];
+};
+
 const fallbackStatus: NetworkStatus = {
   overlayIp: "10.24.8.12",
   relay: "Tokyo Relay / VPS",
@@ -101,4 +105,13 @@ export async function syncRecentAction(payload: SyncRecentActionPayload): Promis
   });
 
   return mapRecentAction(response);
+}
+
+export async function fetchRecentActionsHistory(): Promise<RecentAction[]> {
+  try {
+    const response = await getJson<RecentActionListResponse>("/api/network/actions");
+    return Array.isArray(response.items) ? response.items.map((item) => mapRecentAction(item)) : [];
+  } catch {
+    return [];
+  }
 }

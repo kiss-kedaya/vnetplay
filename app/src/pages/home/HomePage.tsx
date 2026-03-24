@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+import { Plus, Users, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { createRoom, fetchRooms, joinRoom, type RoomItem } from "../../lib/api/rooms";
-import { saveAppSettings } from "../../lib/settings/appSettings";
+import { appendRuntimeEvent } from "../../lib/runtime/runtimeEvents";
 import type { UserProfile } from "../../lib/profile/userProfile";
 import type { ConnectionContext } from "../../lib/runtime/connectionContext";
+import { useLiveRefresh } from "../../lib/runtime/useLiveRefresh";
 import type { AppSettings } from "../../lib/settings/appSettings";
 
 type HomePageProps = {
@@ -10,129 +18,170 @@ type HomePageProps = {
   settings: AppSettings;
   connectionContext: ConnectionContext;
   onUpdateConnectionContext: (context: ConnectionContext) => void;
+  onSaveSettings: (input: Partial<AppSettings>) => void;
+  onOpenPage: (key: string) => void;
+  onRequestNetworkStart: (input: { roomId: string; serverBaseUrl: string; mode: "resume" }) => void;
 };
 
 function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function passwordLabel(room: RoomItem | null): string {
-  if (!room) {
-    return "--";
-  }
-
-  return room.requiresPassword ? "有密码" : "免密码";
-}
-
-export function HomePage({ profile, settings, connectionContext, onUpdateConnectionContext }: HomePageProps) {
+export function HomePage({
+  profile,
+  settings,
+  connectionContext,
+  onUpdateConnectionContext,
+  onSaveSettings,
+}: HomePageProps) {
   const [serverBaseUrl, setServerBaseUrl] = useState(settings.serverBaseUrl);
   const [roomId, setRoomId] = useState(settings.defaultRoomName);
   const [roomPassword, setRoomPassword] = useState("");
   const [rooms, setRooms] = useState<RoomItem[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [joinPassword, setJoinPassword] = useState("");
-  const [feedback, setFeedback] = useState("先填写服务器地址，再创建或加入房间。");
-  const [loadingRooms, setLoadingRooms] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"create" | "join">("create");
 
   useEffect(() => {
     setServerBaseUrl(settings.serverBaseUrl);
     setRoomId(settings.defaultRoomName);
   }, [settings.serverBaseUrl, settings.defaultRoomName]);
 
-  const selectedRoom = useMemo(() => rooms.find((item) => item.roomId === selectedRoomId) ?? null, [rooms, selectedRoomId]);
+  const selectedRoom = useMemo(
+    () => rooms.find((item) => item.roomId === selectedRoomId) ?? null,
+    [rooms, selectedRoomId]
+  );
 
-  async function handleLoadRooms() {
-    const trimmedBaseUrl = serverBaseUrl.trim();
-    if (!trimmedBaseUrl) {
-      setFeedback("请先填写服务器地址。");
+  async function loadRooms() {
+    const trimmed = serverBaseUrl.trim();
+    if (!trimmed) {
+      toast.error("请先填写服务器地址");
       return;
     }
-
-    setLoadingRooms(true);
+    
+    setLoading(true);
     try {
-      saveAppSettings({ serverBaseUrl: trimmedBaseUrl });
       const items = await fetchRooms();
       setRooms(items);
-      setSelectedRoomId((current) => current || items[0]?.roomId || "");
-      setFeedback(items.length > 0 ? "已读取服务器房间。" : "当前服务器没有房间，可以直接创建。");
+      if (items.length > 0 && !selectedRoomId) {
+        setSelectedRoomId(items[0].roomId);
+      }
+      toast.success(`已加载 ${items.length} 个房间`);
     } catch (error) {
-      setRooms([]);
-      setSelectedRoomId("");
-      setFeedback(`读取服务器房间失败：${errorDetail(error)}`);
+      console.error("Failed to load rooms:", error);
+      toast.error("加载房间列表失败：" + errorDetail(error));
     } finally {
-      setLoadingRooms(false);
+      setLoading(false);
     }
   }
 
+  useLiveRefresh({
+    enabled: serverBaseUrl.trim().length > 0,
+    intervalMs: 5000,
+    onRefresh: loadRooms,
+  });
+
   async function handleCreateRoom() {
-    const trimmedBaseUrl = serverBaseUrl.trim();
-    if (!trimmedBaseUrl) {
-      setFeedback("请先填写服务器地址，再创建房间。");
+    const trimmedServer = serverBaseUrl.trim();
+    const trimmedRoom = roomId.trim();
+    
+    if (!trimmedServer) {
+      toast.error("请先填写服务器地址");
       return;
     }
-
-    const trimmedRoomId = roomId.trim();
-    if (!trimmedRoomId) {
-      setFeedback("请输入房间名。");
+    if (!trimmedRoom) {
+      toast.error("请输入房间名");
       return;
     }
 
     try {
-      saveAppSettings({ serverBaseUrl: trimmedBaseUrl, defaultRoomName: trimmedRoomId });
       const room = await createRoom({
-        roomId: trimmedRoomId,
+        roomId: trimmedRoom,
         username: profile.username,
         clientId: profile.machineId,
         password: roomPassword,
         game: "Minecraft",
         mode: "LAN Overlay",
       });
-      setRoomPassword("");
-      setFeedback(`已创建并进入 ${room.roomId}。现在可以让朋友输入同样的服务器和房间名加入。`);
+      
+      appendRuntimeEvent({
+        scope: "room",
+        title: "已开房",
+        detail: room.roomId,
+        tone: "online",
+        roomId: room.roomId,
+        source: "home-create",
+      });
+      
+      toast.success(`房间 ${room.roomId} 创建成功`);
+      
+      onSaveSettings({ serverBaseUrl: trimmedServer, defaultRoomName: trimmedRoom });
+      
       onUpdateConnectionContext({
         roomId: room.roomId,
         username: profile.username,
-        serverBaseUrl: trimmedBaseUrl,
+        serverBaseUrl: trimmedServer,
         success: true,
-        detail: `已创建并进入房间 ${room.roomId}`,
+        detail: `已创建房间 ${room.roomId}`,
         pid: null,
         source: "manual-start",
         updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
         runtimeDurationLabel: "idle",
       });
-      await handleLoadRooms();
-      setSelectedRoomId(room.roomId);
+      
+      setRoomPassword("");
     } catch (error) {
-      setFeedback(`创建房间失败：${errorDetail(error)}`);
+      appendRuntimeEvent({
+        scope: "room",
+        title: "开房失败",
+        detail: errorDetail(error),
+        tone: "warning",
+        roomId: trimmedRoom,
+        source: "home-create",
+      });
+      toast.error("创建房间失败：" + errorDetail(error));
     }
   }
 
   async function handleJoinRoom() {
-    const trimmedBaseUrl = serverBaseUrl.trim();
-    if (!trimmedBaseUrl) {
-      setFeedback("请先填写服务器地址，再加入房间。");
+    const trimmedServer = serverBaseUrl.trim();
+    const targetRoomId = selectedRoomId.trim() || roomId.trim();
+    
+    if (!trimmedServer) {
+      toast.error("请先填写服务器地址");
       return;
     }
-
-    const targetRoomId = selectedRoomId.trim() || roomId.trim();
     if (!targetRoomId) {
-      setFeedback("请先选择房间或输入房间名。");
+      toast.error("请选择或输入房间名");
       return;
     }
 
     try {
-      saveAppSettings({ serverBaseUrl: trimmedBaseUrl, defaultRoomName: targetRoomId });
       const room = await joinRoom({
         roomId: targetRoomId,
         username: profile.username,
         clientId: profile.machineId,
         password: joinPassword,
       });
-      setFeedback(`已进入 ${room.roomId}，当前人数 ${room.members}。现在可以在游戏里搜索局域网房间。`);
+      
+      appendRuntimeEvent({
+        scope: "room",
+        title: "已进房",
+        detail: `${room.roomId} · ${room.members}人`,
+        tone: "online",
+        roomId: room.roomId,
+        source: "home-join",
+      });
+      
+      toast.success(`已加入房间 ${room.roomId}`);
+      
+      onSaveSettings({ serverBaseUrl: trimmedServer, defaultRoomName: targetRoomId });
+      
       onUpdateConnectionContext({
         roomId: room.roomId,
         username: profile.username,
-        serverBaseUrl: trimmedBaseUrl,
+        serverBaseUrl: trimmedServer,
         success: true,
         detail: `已进入房间 ${room.roomId}`,
         pid: null,
@@ -140,107 +189,172 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
         updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
         runtimeDurationLabel: "idle",
       });
-      await handleLoadRooms();
-      setSelectedRoomId(room.roomId);
     } catch (error) {
-      setFeedback(`进入房间失败：${errorDetail(error)}`);
+      appendRuntimeEvent({
+        scope: "room",
+        title: "加入失败",
+        detail: errorDetail(error),
+        tone: "warning",
+        roomId: targetRoomId,
+        source: "home-join",
+      });
+      toast.error("加入房间失败：" + errorDetail(error));
     }
   }
 
   return (
-    <div className="launcher-home compact-room-workspace">
-      <section className="card launcher-hero compact-hero compact-hero-slim compact-hero-ultra-slim">
-        <div className="compact-hero-copy compact-hero-copy-ultra-slim">
-          <h2>这一页就够了</h2>
-          <div className="path-hint compact-inline-hint">同服创建、选房、加入，都从这里开始。</div>
-        </div>
-        <div className="launcher-hero-meta compact-hero-meta compact-hero-meta-slim">
-          <span>{profile.username}</span>
-          <span>{profile.machineLabel}</span>
-        </div>
-      </section>
-
-      <section className="card launcher-main-card compact-stack-card">
-        <div className="section-header compact-section-header">
-          <h2>1. 服务器</h2>
-          <p>先填服务器地址，再读取已有房间或直接创建。</p>
-        </div>
-        <input className="settings-input" value={serverBaseUrl} onChange={(event) => setServerBaseUrl(event.target.value)} placeholder="先填写服务器地址，例如 http://127.0.0.1:9080" />
-        <div className="launcher-inline-actions">
-          <button className="ghost-button" type="button" onClick={handleLoadRooms}>{loadingRooms ? "读取中..." : "查看服务器房间"}</button>
-        </div>
-        <div className="path-hint">房主和玩家先填同一个服务器地址。</div>
-      </section>
-
-      <section className="compact-room-grid">
-        <div className="card launcher-main-card compact-stack-card">
-          <div className="section-header compact-section-header">
-            <h2>2. 新建房间</h2>
-            <p>自己当房主，设置房间名后直接进入。</p>
+    <div className="space-y-6">
+      {/* 服务器配置 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">服务器地址</CardTitle>
+          <CardDescription>填写服务器地址以开始</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-2">
+            <Input
+              placeholder="http://127.0.0.1:9080"
+              value={serverBaseUrl}
+              onChange={(e) => setServerBaseUrl(e.target.value)}
+              className="flex-1"
+            />
+            <Button onClick={loadRooms} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              读取
+            </Button>
           </div>
-          <input className="settings-input" value={roomId} onChange={(event) => setRoomId(event.target.value)} placeholder="输入房间名" />
-          <input className="settings-input" value={roomPassword} onChange={(event) => setRoomPassword(event.target.value)} placeholder="可选：设置房间密码" />
-          <button className="launcher-action primary-button" type="button" onClick={handleCreateRoom}>新建并进入</button>
-        </div>
+        </CardContent>
+      </Card>
 
-        <div className="card launcher-main-card compact-stack-card">
-          <div className="section-header compact-section-header">
-            <h2>3. 选择并加入</h2>
-            <p>先点上面的“查看服务器房间”，再选房间输入密码加入。</p>
-          </div>
-          <div className="room-picker-list">
-            {rooms.length > 0 ? (
-              rooms.map((room) => {
-                const active = room.roomId === selectedRoomId;
-                const connected = room.roomId === connectionContext.roomId && connectionContext.success;
-                return (
+      {/* 操作选项卡 */}
+      <div className="flex gap-2">
+        <Button
+          variant={activeTab === "create" ? "default" : "outline"}
+          onClick={() => setActiveTab("create")}
+          className="flex-1"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          创建房间
+        </Button>
+        <Button
+          variant={activeTab === "join" ? "default" : "outline"}
+          onClick={() => setActiveTab("join")}
+          className="flex-1"
+        >
+          <Users className="w-4 h-4 mr-2" />
+          加入房间
+        </Button>
+      </div>
+
+      {/* 创建房间 */}
+      {activeTab === "create" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              新建房间
+            </CardTitle>
+            <CardDescription>创建一个新房间并成为房主</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>房间名</Label>
+              <Input
+                placeholder="my-room-name"
+                value={roomId}
+                onChange={(e) => setRoomId(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>密码（可选）</Label>
+              <Input
+                type="password"
+                placeholder="留空表示无密码"
+                value={roomPassword}
+                onChange={(e) => setRoomPassword(e.target.value)}
+              />
+            </div>
+            <Button className="w-full" onClick={handleCreateRoom}>
+              创建房间
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 加入房间 */}
+      {activeTab === "join" && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  房间列表
+                </CardTitle>
+                <CardDescription>选择一个房间加入</CardDescription>
+              </div>
+              {rooms.length > 0 && (
+                <Badge variant="secondary">{rooms.length} 个房间</Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* 房间列表 */}
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {rooms.length > 0 ? (
+                rooms.map((room) => (
                   <button
                     key={room.roomId}
-                    type="button"
-                    className={`room-picker-card ${active ? "active" : ""} ${connected ? "connected" : ""}`}
                     onClick={() => setSelectedRoomId(room.roomId)}
+                    className={`w-full text-left p-3 rounded-lg border transition-colors ${
+                      room.roomId === selectedRoomId
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:bg-muted/50"
+                    }`}
                   >
-                    <span className="room-picker-head">
-                      <span className="room-picker-title">{room.roomId}</span>
-                      <span className="room-picker-badges">
-                        <span className={`room-picker-badge password ${room.requiresPassword ? "locked" : "open"}`}>
-                          {room.requiresPassword ? "有密码" : "免密码"}
-                        </span>
-                        {connected ? <span className="room-picker-badge connected">当前连接</span> : null}
-                        {active ? <span className="room-picker-badge active">已选中</span> : null}
-                      </span>
-                    </span>
-                    <span className="room-picker-meta">{room.members} 人 · 房主：{room.host}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">{room.roomId}</span>
+                      <Badge variant={room.requiresPassword ? "outline" : "secondary"} className="text-xs">
+                        {room.requiresPassword ? "有密码" : "免密码"}
+                      </Badge>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {room.members}人 · 房主：{room.host}
+                    </div>
                   </button>
-                );
-              })
-            ) : (
-              <div className="launcher-empty">还没有房间，先点“查看服务器房间”或直接创建。</div>
-            )}
-          </div>
-          <input className="settings-input" value={joinPassword} onChange={(event) => setJoinPassword(event.target.value)} placeholder="如房间需要密码，请输入" />
-          <button className="launcher-action ghost-button" type="button" onClick={handleJoinRoom}>加入房间</button>
-        </div>
-      </section>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">暂无房间，点击"读取"刷新</p>
+                </div>
+              )}
+            </div>
 
-      <section className="card launcher-status-card compact-status-card">
-        <div className="section-header compact-section-header">
-          <h2>4. 当前状态</h2>
-          <p>只保留当前最有用的信息。</p>
-        </div>
-        <div className="key-value-grid compact-key-value-grid compact-status-grid">
-          <div><strong>当前房间</strong><span>{connectionContext.roomId}</span></div>
-          <div><strong>连接状态</strong><span>{connectionContext.success ? "已准备" : "未连接"}</span></div>
-          <div><strong>服务器</strong><span>{serverBaseUrl || "未填写"}</span></div>
-          <div><strong>已选房间</strong><span>{selectedRoom?.roomId || "未选择"}</span></div>
-          <div><strong>人数</strong><span>{selectedRoom ? String(selectedRoom.members) : "--"}</span></div>
-          <div><strong>密码</strong><span>{passwordLabel(selectedRoom)}</span></div>
-        </div>
-        <div className="command-log card-subtle compact-command-log">
-          <div className="command-log-label">提示</div>
-          <div className="command-log-detail">{feedback}</div>
-        </div>
-      </section>
+            {/* 密码输入 */}
+            {selectedRoom?.requiresPassword && (
+              <div className="space-y-2">
+                <Label>房间密码</Label>
+                <Input
+                  type="password"
+                  placeholder="输入房间密码"
+                  value={joinPassword}
+                  onChange={(e) => setJoinPassword(e.target.value)}
+                />
+              </div>
+            )}
+
+            <Button
+              className="w-full"
+              variant="outline"
+              onClick={handleJoinRoom}
+              disabled={!selectedRoomId}
+            >
+              加入房间
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

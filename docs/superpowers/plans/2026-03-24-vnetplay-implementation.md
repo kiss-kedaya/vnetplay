@@ -210,4 +210,10 @@
 - [x] Room selection in the primary workspace no longer depends on a native select: the home workspace now uses a small room card list, and `RoomsPage` has been reduced to a compatibility wrapper so room flow does not fork into two separate implementations.
 - [x] The launcher workspace is now compressed into a tighter single-flow layout: server -> create room -> choose room -> current status, and the former split status blocks are merged into one compact room-state panel.
 - [x] Repository README now reflects the real product state: room-first launcher flow, machine-id identity, current local startup/build commands, and the split frontend/server/desktop CI quality gates.
+- [x] Diagnostics page now aggregates server health, room snapshots, local inspect output, and local/server state drift hints into one actionable troubleshooting workspace.
+- [x] The shell UI now leans into a compact LAN-box feel: persistent room/device plates, shorter copy, and denser control cards across home, network, diagnostics, and settings.
+- [x] Home, network, and diagnostics pages now auto-refresh their key snapshots so the shell feels like a live LAN box instead of a static form.
+- [x] The shell now keeps a local runtime timeline for room sync, room join/create, edge changes, and server actions, making the client feel closer to a real appliance console.
+- [x] The launcher home now supports quick resume: it can restore the last room/server snapshot and jump straight into network startup in one action.
+- [x] Server recent action is no longer single-frame only: the backend now persists action history and the network / diagnostics pages can inspect recent server-side events as a timeline.
 - [ ] Next pass: continue turning the shell into an end-to-end usable LAN client.

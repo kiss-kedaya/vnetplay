@@ -14,6 +14,8 @@ pub struct PersistedState {
     pub heartbeats: HashMap<String, NodeHeartbeat>,
     #[serde(default = "RecentAction::idle")]
     pub recent_action: RecentAction,
+    #[serde(default)]
+    pub recent_actions: Vec<RecentAction>,
 }
 
 impl PersistedState {
@@ -22,11 +24,24 @@ impl PersistedState {
             rooms: default_rooms(),
             heartbeats: HashMap::new(),
             recent_action: RecentAction::idle(),
+            recent_actions: vec![RecentAction::idle()],
         }
     }
 
     pub fn normalize(&mut self) {
         self.rooms.iter_mut().for_each(RoomSummary::normalize);
+
+        if self.recent_actions.is_empty() {
+            self.recent_actions.push(self.recent_action.clone());
+        }
+
+        self.recent_action = self
+            .recent_actions
+            .first()
+            .cloned()
+            .unwrap_or_else(RecentAction::idle);
+
+        self.recent_actions.truncate(80);
     }
 }
 
