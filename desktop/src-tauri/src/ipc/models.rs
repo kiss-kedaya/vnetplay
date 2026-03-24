@@ -29,6 +29,8 @@ pub struct CommandResponse {
 #[derive(Clone, Debug, Serialize)]
 pub struct SystemIdentityResponse {
     pub system_username: String,
+    pub machine_id: String,
+    pub machine_label: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]

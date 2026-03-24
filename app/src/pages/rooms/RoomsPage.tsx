@@ -99,6 +99,7 @@ export function RoomsPage({ profile, settings, connectionContext }: RoomsPagePro
       const room = await createRoom({
         roomId,
         username: profile.username,
+        clientId: profile.machineId,
         password: createPassword,
         game: "Minecraft",
         mode: "LAN Overlay",
@@ -130,6 +131,7 @@ export function RoomsPage({ profile, settings, connectionContext }: RoomsPagePro
       const room = await joinRoom({
         roomId,
         username: profile.username,
+        clientId: profile.machineId,
         password: joinPassword,
       });
       await loadRooms(trimmedBaseUrl);

@@ -45,13 +45,15 @@ export function App() {
     systemUsername: "player",
     username: "player",
     source: "system",
+    machineId: "unknown-machine",
+    machineLabel: "unknown",
   });
   const [settings, setSettings] = useState<AppSettings>(resolveAppSettings());
   const [connectionContext, setConnectionContext] = useState<ConnectionContext>(resolveConnectionContext());
 
   useEffect(() => {
     readSystemIdentityBridge().then((identity) => {
-      setProfile(resolveUserProfile(identity.systemUsername));
+      setProfile(resolveUserProfile(identity.systemUsername, identity.machineId, identity.machineLabel));
     });
     setSettings(resolveAppSettings());
     setConnectionContext(resolveConnectionContext());
@@ -60,7 +62,7 @@ export function App() {
   const activeItem = useMemo(() => navItems.find((item) => item.key === activeKey) ?? navItems[0], [activeKey]);
 
   function handleSaveUsername(username: string) {
-    setProfile((current) => saveUserOverride(username, current.systemUsername));
+    setProfile((current) => saveUserOverride(username, current.systemUsername, current.machineId, current.machineLabel));
   }
 
   function handleResetUsername() {
@@ -69,6 +71,8 @@ export function App() {
       systemUsername: current.systemUsername,
       username: current.systemUsername,
       source: "system",
+      machineId: current.machineId,
+      machineLabel: current.machineLabel,
     }));
   }
 

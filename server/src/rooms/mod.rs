@@ -13,7 +13,11 @@ pub struct RoomSummary {
     pub members: usize,
     pub host: String,
     #[serde(default)]
+    pub host_id: String,
+    #[serde(default)]
     pub participants: Vec<String>,
+    #[serde(default)]
+    pub participant_ids: Vec<String>,
     #[serde(default = "current_timestamp")]
     pub created_at: String,
     #[serde(default = "current_timestamp")]
@@ -25,7 +29,7 @@ pub struct RoomSummary {
 }
 
 impl RoomSummary {
-    pub fn new(room_id: String, game: String, mode: String, host: String) -> Self {
+    pub fn new(room_id: String, game: String, mode: String, host: String, host_id: String) -> Self {
         let timestamp = current_timestamp();
 
         Self {
@@ -34,7 +38,9 @@ impl RoomSummary {
             mode,
             members: 0,
             host,
+            host_id,
             participants: Vec::new(),
+            participant_ids: Vec::new(),
             created_at: timestamp.clone(),
             last_active_at: timestamp,
             password: None,
@@ -42,16 +48,23 @@ impl RoomSummary {
         }
     }
 
-    pub fn ensure_participant(&mut self, username: &str) {
-        if !self.participants.iter().any(|item| item == username) {
+    pub fn ensure_participant(&mut self, username: &str, client_id: &str) {
+        if let Some(index) = self.participant_ids.iter().position(|item| item == client_id) {
+            self.participants[index] = username.to_string();
+        } else {
+            self.participant_ids.push(client_id.to_string());
             self.participants.push(username.to_string());
         }
 
-        self.members = self.participants.len();
+        self.members = self.participant_ids.len();
         self.last_active_at = current_timestamp();
 
         if self.host.trim().is_empty() {
             self.host = username.to_string();
+        }
+
+        if self.host_id.trim().is_empty() {
+            self.host_id = client_id.to_string();
         }
     }
 
@@ -80,7 +93,11 @@ impl RoomSummary {
             self.host = "system".to_string();
         }
 
-        self.members = self.participants.len().max(self.members);
+        if self.host_id.trim().is_empty() {
+            self.host_id = "unknown-machine".to_string();
+        }
+
+        self.members = self.participant_ids.len().max(self.participants.len()).max(self.members);
         self.requires_password = self.password.as_ref().is_some_and(|value| !value.trim().is_empty());
     }
 }
@@ -91,12 +108,11 @@ pub fn default_rooms() -> Vec<RoomSummary> {
         "Slay the Spire 2".to_string(),
         "LAN Overlay".to_string(),
         "kedaya-main".to_string(),
+        "machine-main".to_string(),
     );
-    first.participants = vec![
-        "kedaya-main".to_string(),
-        "kedaya-vps".to_string(),
-        "relay-preferred".to_string(),
-    ];
+    first.ensure_participant("kedaya-main", "machine-main");
+    first.ensure_participant("kedaya-vps", "machine-vps");
+    first.ensure_participant("relay-preferred", "machine-relay");
     first.set_password(Some("123456".to_string()));
     first.normalize();
 
@@ -105,14 +121,13 @@ pub fn default_rooms() -> Vec<RoomSummary> {
         "Minecraft".to_string(),
         "Overlay + Direct Join".to_string(),
         "kedaya-vps".to_string(),
+        "machine-vps".to_string(),
     );
-    second.participants = vec![
-        "kedaya-vps".to_string(),
-        "kedaya-main".to_string(),
-        "builder-01".to_string(),
-        "builder-02".to_string(),
-        "builder-03".to_string(),
-    ];
+    second.ensure_participant("kedaya-vps", "machine-vps");
+    second.ensure_participant("kedaya-main", "machine-main");
+    second.ensure_participant("builder-01", "machine-builder-01");
+    second.ensure_participant("builder-02", "machine-builder-02");
+    second.ensure_participant("builder-03", "machine-builder-03");
     second.normalize();
 
     vec![first, second]

@@ -24,6 +24,8 @@ export type DesktopCommandResult = {
 
 export type DesktopIdentityResult = {
   systemUsername: string;
+  machineId: string;
+  machineLabel: string;
 };
 
 export type StartNetworkPayload = {
@@ -93,12 +95,16 @@ export async function readSystemIdentityBridge(): Promise<DesktopIdentityResult>
     } catch {
       return {
         systemUsername: "player",
+        machineId: "unknown-machine",
+        machineLabel: "unknown",
       };
     }
   }
 
   return {
     systemUsername: "player",
+    machineId: "unknown-machine",
+    machineLabel: "unknown",
   };
 }
 

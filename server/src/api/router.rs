@@ -52,6 +52,7 @@ struct CreateRoomRequest {
     game: String,
     mode: String,
     username: String,
+    client_id: String,
     password: Option<String>,
 }
 
@@ -59,6 +60,7 @@ struct CreateRoomRequest {
 struct JoinRoomRequest {
     room_id: String,
     username: String,
+    client_id: String,
     password: Option<String>,
 }
 
@@ -89,6 +91,7 @@ async fn dashboard_summary(State(state): State<AppState>) -> Json<DashboardSumma
         "Unknown".to_string(),
         "LAN Overlay".to_string(),
         "system".to_string(),
+        "unknown-machine".to_string(),
     ));
 
     let overlay_ip = heartbeats
@@ -121,9 +124,10 @@ async fn create_room(
 ) -> Result<Json<RoomSummary>, (StatusCode, String)> {
     let room_id = payload.room_id.trim();
     let username = payload.username.trim();
+    let client_id = payload.client_id.trim();
 
-    if room_id.is_empty() || username.is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "room_id and username are required".to_string()));
+    if room_id.is_empty() || username.is_empty() || client_id.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "room_id, username, and client_id are required".to_string()));
     }
 
     let mut rooms = state.rooms.lock().expect("rooms mutex poisoned");
@@ -137,9 +141,10 @@ async fn create_room(
         payload.game.trim().to_string(),
         payload.mode.trim().to_string(),
         username.to_string(),
+        client_id.to_string(),
     );
     room.set_password(payload.password);
-    room.ensure_participant(username);
+    room.ensure_participant(username, client_id);
     rooms.insert(0, room.clone());
     drop(rooms);
     state.set_recent_action(
@@ -164,9 +169,10 @@ async fn join_room(
 ) -> Result<Json<RoomSummary>, (StatusCode, String)> {
     let room_id = payload.room_id.trim();
     let username = payload.username.trim();
+    let client_id = payload.client_id.trim();
 
-    if room_id.is_empty() || username.is_empty() {
-        return Err((StatusCode::BAD_REQUEST, "room_id and username are required".to_string()));
+    if room_id.is_empty() || username.is_empty() || client_id.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "room_id, username, and client_id are required".to_string()));
     }
 
     let mut rooms = state.rooms.lock().expect("rooms mutex poisoned");
@@ -176,7 +182,7 @@ async fn join_room(
             return Err((StatusCode::UNAUTHORIZED, "room password is required or incorrect".to_string()));
         }
 
-        room.ensure_participant(username);
+        room.ensure_participant(username, client_id);
         let updated = room.clone();
         drop(rooms);
         state.set_recent_action(

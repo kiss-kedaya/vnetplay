@@ -74,6 +74,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
       const room = await createRoom({
         roomId: trimmedRoomId,
         username: profile.username,
+        clientId: profile.machineId,
         password: roomPassword,
         game: "Minecraft",
         mode: "LAN Overlay",
@@ -116,6 +117,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
       const room = await joinRoom({
         roomId: targetRoomId,
         username: profile.username,
+        clientId: profile.machineId,
         password: joinPassword,
       });
       setFeedback(`已进入 ${room.roomId}，当前人数 ${room.members}。现在可以在游戏里搜索局域网房间。`);

@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 
 use crate::app::services::n2n_service::{is_edge_pid_alive, preview_edge_command, start_edge, stop_edge};
-use crate::app::services::system_identity::current_system_username;
+use crate::app::services::system_identity::{current_machine_id, current_machine_label, current_system_username};
 use crate::app::state::DesktopState;
 use crate::ipc::models::{CommandResponse, InspectSnapshot, StartNetworkRequest, SystemIdentityResponse};
 
@@ -51,6 +51,8 @@ pub fn command_summary() -> &'static str {
 pub fn get_system_identity() -> SystemIdentityResponse {
     SystemIdentityResponse {
         system_username: current_system_username(),
+        machine_id: current_machine_id(),
+        machine_label: current_machine_label(),
     }
 }
 
