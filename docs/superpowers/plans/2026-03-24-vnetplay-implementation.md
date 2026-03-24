@@ -171,4 +171,5 @@
 - [x] Settings page now supports editing the server base URL and default room name with local persistence.
 - [x] Frontend dashboard, rooms, and network API calls now share the configured server base URL.
 - [x] Rooms page create flow now defaults to the configured default room name.
+- [x] Home page now supports quick create and quick join actions using the current username, configured server base URL, and default room name.
 - [ ] Next pass: replace remaining browser bridge fallbacks with wider real invoke usage and continue turning the shell into an end-to-end usable LAN client.

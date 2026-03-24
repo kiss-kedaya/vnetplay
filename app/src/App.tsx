@@ -32,7 +32,7 @@ function renderPage(key: string, props: PageProps) {
       return <SettingsPage profile={props.profile} settings={props.settings} onSaveUsername={props.onSaveUsername} onResetUsername={props.onResetUsername} onSaveSettings={props.onSaveSettings} />;
     case "home":
     default:
-      return <HomePage profile={props.profile} />;
+      return <HomePage profile={props.profile} settings={props.settings} />;
   }
 }
 
