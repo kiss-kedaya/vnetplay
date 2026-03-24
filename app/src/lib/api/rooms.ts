@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from "../settings/appSettings";
+
 export type RoomItem = {
   roomId: string;
   game: string;
@@ -46,7 +48,7 @@ function mapRoom(item: Record<string, unknown>): RoomItem {
 
 export async function fetchRooms(): Promise<RoomItem[]> {
   try {
-    const response = await fetch("http://127.0.0.1:9080/api/rooms");
+    const response = await fetch(`${getApiBaseUrl()}/api/rooms`);
     if (!response.ok) {
       return fallbackRooms;
     }
@@ -59,7 +61,7 @@ export async function fetchRooms(): Promise<RoomItem[]> {
 }
 
 export async function createRoom(payload: RoomPayload): Promise<RoomItem> {
-  const response = await fetch("http://127.0.0.1:9080/api/rooms/create", {
+  const response = await fetch(`${getApiBaseUrl()}/api/rooms/create`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -80,7 +82,7 @@ export async function createRoom(payload: RoomPayload): Promise<RoomItem> {
 }
 
 export async function joinRoom(payload: RoomPayload): Promise<RoomItem> {
-  const response = await fetch("http://127.0.0.1:9080/api/rooms/join", {
+  const response = await fetch(`${getApiBaseUrl()}/api/rooms/join`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

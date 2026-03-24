@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from "../settings/appSettings";
+
 export type DashboardSummary = {
   overlayIp: string;
   relay: string;
@@ -34,7 +36,7 @@ function normalize(payload: Record<string, unknown>): DashboardSummary {
 
 export async function fetchDashboardSummary(): Promise<DashboardSummary> {
   try {
-    const response = await fetch("http://127.0.0.1:9080/api/dashboard/summary");
+    const response = await fetch(`${getApiBaseUrl()}/api/dashboard/summary`);
     if (!response.ok) {
       return fallbackSummary;
     }

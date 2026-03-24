@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Topbar } from "./components/layout/Topbar";
 import { readSystemIdentityBridge } from "./lib/desktop/bridge";
+import { resolveAppSettings, saveAppSettings, type AppSettings } from "./lib/settings/appSettings";
 import { navItems } from "./lib/ui/nav";
 import { HomePage } from "./pages/home/HomePage";
 import { RoomsPage } from "./pages/rooms/RoomsPage";
@@ -13,20 +14,22 @@ import "./styles/index.css";
 
 type PageProps = {
   profile: UserProfile;
+  settings: AppSettings;
   onSaveUsername: (username: string) => void;
   onResetUsername: () => void;
+  onSaveSettings: (input: AppSettings) => void;
 };
 
 function renderPage(key: string, props: PageProps) {
   switch (key) {
     case "rooms":
-      return <RoomsPage profile={props.profile} />;
+      return <RoomsPage profile={props.profile} settings={props.settings} />;
     case "network":
       return <NetworkPage />;
     case "diagnostics":
       return <DiagnosticsPage />;
     case "settings":
-      return <SettingsPage profile={props.profile} onSaveUsername={props.onSaveUsername} onResetUsername={props.onResetUsername} />;
+      return <SettingsPage profile={props.profile} settings={props.settings} onSaveUsername={props.onSaveUsername} onResetUsername={props.onResetUsername} onSaveSettings={props.onSaveSettings} />;
     case "home":
     default:
       return <HomePage profile={props.profile} />;
@@ -40,11 +43,13 @@ export function App() {
     username: "player",
     source: "system",
   });
+  const [settings, setSettings] = useState<AppSettings>(resolveAppSettings());
 
   useEffect(() => {
     readSystemIdentityBridge().then((identity) => {
       setProfile(resolveUserProfile(identity.systemUsername));
     });
+    setSettings(resolveAppSettings());
   }, []);
 
   const activeItem = useMemo(() => navItems.find((item) => item.key === activeKey) ?? navItems[0], [activeKey]);
@@ -62,6 +67,10 @@ export function App() {
     }));
   }
 
+  function handleSaveSettings(input: AppSettings) {
+    setSettings(saveAppSettings(input));
+  }
+
   return (
     <div className="app-shell">
       <Sidebar items={navItems} activeKey={activeKey} onSelect={setActiveKey} />
@@ -69,8 +78,10 @@ export function App() {
         <Topbar title={activeItem.label} description={activeItem.description} username={profile.username} profileSource={profile.source} />
         {renderPage(activeKey, {
           profile,
+          settings,
           onSaveUsername: handleSaveUsername,
           onResetUsername: handleResetUsername,
+          onSaveSettings: handleSaveSettings,
         })}
       </main>
     </div>

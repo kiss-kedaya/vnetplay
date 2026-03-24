@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRoom, fetchRooms, joinRoom, type RoomItem } from "../../lib/api/rooms";
 import type { UserProfile } from "../../lib/profile/userProfile";
+import type { AppSettings } from "../../lib/settings/appSettings";
 
 type RoomsPageProps = {
   profile: UserProfile;
+  settings: AppSettings;
 };
 
-export function RoomsPage({ profile }: RoomsPageProps) {
+export function RoomsPage({ profile, settings }: RoomsPageProps) {
   const [rooms, setRooms] = useState<RoomItem[]>([]);
-  const [createRoomId, setCreateRoomId] = useState("my-new-room");
+  const [createRoomId, setCreateRoomId] = useState(settings.defaultRoomName);
   const [selectedRoomId, setSelectedRoomId] = useState("");
   const [feedback, setFeedback] = useState("准备创建或加入房间。");
 
@@ -17,7 +19,11 @@ export function RoomsPage({ profile }: RoomsPageProps) {
       setRooms(items);
       setSelectedRoomId(items[0]?.roomId ?? "");
     });
-  }, []);
+  }, [settings.serverBaseUrl]);
+
+  useEffect(() => {
+    setCreateRoomId(settings.defaultRoomName);
+  }, [settings.defaultRoomName]);
 
   const activeRoom = useMemo(() => rooms.find((room) => room.roomId === selectedRoomId) ?? rooms[0], [rooms, selectedRoomId]);
 
@@ -44,7 +50,7 @@ export function RoomsPage({ profile }: RoomsPageProps) {
       await refreshRooms(room.roomId);
       setFeedback(`已创建房间 ${room.roomId}，当前玩家 ${profile.username} 已自动加入。`);
     } catch {
-      setFeedback("创建房间失败，可能是房间已存在或服务端未启动。");
+      setFeedback(`创建房间失败，请检查服务端地址 ${settings.serverBaseUrl} 是否可访问，或确认房间名未重复。`);
     }
   }
 
@@ -63,7 +69,7 @@ export function RoomsPage({ profile }: RoomsPageProps) {
       await refreshRooms(room.roomId);
       setFeedback(`已加入房间 ${room.roomId}，当前成员 ${room.participants.join(" / ")}。`);
     } catch {
-      setFeedback("加入房间失败，可能是房间不存在或服务端未启动。");
+      setFeedback(`加入房间失败，请检查服务端地址 ${settings.serverBaseUrl} 或确认目标房间仍存在。`);
     }
   }
 
@@ -71,13 +77,14 @@ export function RoomsPage({ profile }: RoomsPageProps) {
     <section className="card page-card rooms-page">
       <div className="section-header">
         <h2>房间列表</h2>
-        <p>当前玩家 {profile.username} 可以直接创建房间或加入现有房间，成员列表会同步记录到服务端状态。</p>
+        <p>当前玩家 {profile.username} 可以直接创建房间或加入现有房间，成员列表会同步记录到服务端状态。当前服务端：{settings.serverBaseUrl}</p>
       </div>
 
       <div className="rooms-actions-grid">
         <div className="card-subtle settings-block">
           <div className="settings-label">创建房间</div>
           <input className="settings-input" value={createRoomId} onChange={(event) => setCreateRoomId(event.target.value)} placeholder="输入新房间名" />
+          <div className="settings-meta">默认来自设置页的默认房间名：{settings.defaultRoomName}</div>
           <button className="primary-button" type="button" onClick={handleCreateRoom}>创建并加入</button>
         </div>
 

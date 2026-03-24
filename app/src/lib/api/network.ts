@@ -1,3 +1,5 @@
+import { getApiBaseUrl } from "../settings/appSettings";
+
 export type NetworkStatus = {
   overlayIp: string;
   relay: string;
@@ -16,7 +18,7 @@ const fallbackStatus: NetworkStatus = {
 
 export async function fetchNetworkStatus(): Promise<NetworkStatus> {
   try {
-    const response = await fetch("http://127.0.0.1:9080/api/network/status");
+    const response = await fetch(`${getApiBaseUrl()}/api/network/status`);
     if (!response.ok) {
       return fallbackStatus;
     }

@@ -168,4 +168,7 @@
 - [x] Settings page now allows overriding the display username and resetting back to the detected system username.
 - [x] Rooms page now supports creating a room and joining an existing room against the live Rust server API.
 - [x] Current username is now written into room participant lists when creating or joining a room.
-- [ ] Next pass: replace remaining browser bridge fallbacks with wider real invoke usage, add server address/default room settings, and continue turning the shell into an end-to-end usable LAN client.
+- [x] Settings page now supports editing the server base URL and default room name with local persistence.
+- [x] Frontend dashboard, rooms, and network API calls now share the configured server base URL.
+- [x] Rooms page create flow now defaults to the configured default room name.
+- [ ] Next pass: replace remaining browser bridge fallbacks with wider real invoke usage and continue turning the shell into an end-to-end usable LAN client.

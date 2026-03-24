@@ -1,24 +1,34 @@
 import { useEffect, useState } from "react";
 import type { UserProfile } from "../../lib/profile/userProfile";
+import type { AppSettings } from "../../lib/settings/appSettings";
 
 type SettingsPageProps = {
   profile: UserProfile;
+  settings: AppSettings;
   onSaveUsername: (username: string) => void;
   onResetUsername: () => void;
+  onSaveSettings: (input: AppSettings) => void;
 };
 
-export function SettingsPage({ profile, onSaveUsername, onResetUsername }: SettingsPageProps) {
+export function SettingsPage({ profile, settings, onSaveUsername, onResetUsername, onSaveSettings }: SettingsPageProps) {
   const [draftUsername, setDraftUsername] = useState(profile.username);
+  const [serverBaseUrl, setServerBaseUrl] = useState(settings.serverBaseUrl);
+  const [defaultRoomName, setDefaultRoomName] = useState(settings.defaultRoomName);
 
   useEffect(() => {
     setDraftUsername(profile.username);
   }, [profile.username]);
 
+  useEffect(() => {
+    setServerBaseUrl(settings.serverBaseUrl);
+    setDefaultRoomName(settings.defaultRoomName);
+  }, [settings.serverBaseUrl, settings.defaultRoomName]);
+
   return (
     <section className="card page-card settings-page">
       <div className="section-header">
         <h2>基础设置</h2>
-        <p>软件启动时会自动读取当前系统用户名。你也可以在这里改成对外显示的玩家昵称。</p>
+        <p>软件启动时会自动读取当前系统用户名。你也可以在这里改成对外显示的玩家昵称，并配置服务端地址与默认房间名。</p>
       </div>
 
       <div className="settings-grid">
@@ -34,6 +44,20 @@ export function SettingsPage({ profile, onSaveUsername, onResetUsername }: Setti
           <div className="network-actions settings-actions">
             <button className="primary-button" type="button" onClick={() => onSaveUsername(draftUsername)}>保存用户名</button>
             <button className="ghost-button" type="button" onClick={onResetUsername}>恢复系统用户名</button>
+          </div>
+        </div>
+
+        <div className="card-subtle settings-block">
+          <label className="settings-label" htmlFor="server-base-url">服务端地址</label>
+          <input id="server-base-url" className="settings-input" value={serverBaseUrl} onChange={(event) => setServerBaseUrl(event.target.value)} placeholder="http://127.0.0.1:9080" />
+          <div className="settings-meta">所有 dashboard / rooms / network 请求都会走这个地址。</div>
+        </div>
+
+        <div className="card-subtle settings-block">
+          <label className="settings-label" htmlFor="default-room-name">默认房间名</label>
+          <input id="default-room-name" className="settings-input" value={defaultRoomName} onChange={(event) => setDefaultRoomName(event.target.value)} placeholder="my-new-room" />
+          <div className="network-actions settings-actions">
+            <button className="primary-button" type="button" onClick={() => onSaveSettings({ serverBaseUrl, defaultRoomName })}>保存连接设置</button>
           </div>
         </div>
       </div>
