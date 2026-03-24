@@ -40,6 +40,10 @@ const idleInspect: InspectSnapshot = {
   commandPreview: 'Command { std: "n2n-edge" "-c" "vnetplay-room" "-l" "127.0.0.1:7777" }',
   edgeState: "idle",
   lastCommand: "idle",
+  runtimeStartedAt: "--",
+  lastStartedAt: "--",
+  lastStoppedAt: "--",
+  lastPid: null,
 };
 
 const idleResult: DesktopCommandResult = {
@@ -201,6 +205,10 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
           <div><strong>Supernode</strong><span>{inspect.supernode}</span></div>
           <div><strong>edge 状态</strong><span>{inspect.edgeState}</span></div>
           <div><strong>最后命令</strong><span>{inspect.lastCommand}</span></div>
+          <div><strong>Runtime 启动</strong><span>{inspect.runtimeStartedAt}</span></div>
+          <div><strong>最近启动</strong><span>{inspect.lastStartedAt}</span></div>
+          <div><strong>最近停止</strong><span>{inspect.lastStoppedAt}</span></div>
+          <div><strong>最近 PID</strong><span>{inspect.lastPid ?? "n/a"}</span></div>
         </div>
         <div className="command-log">
           <div className="command-log-label">命令预览</div>

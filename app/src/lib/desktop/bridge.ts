@@ -6,6 +6,10 @@ export type InspectSnapshot = {
   commandPreview: string;
   edgeState: string;
   lastCommand: string;
+  runtimeStartedAt: string;
+  lastStartedAt: string;
+  lastStoppedAt: string;
+  lastPid: number | null;
 };
 
 export type DesktopCommandResult = {

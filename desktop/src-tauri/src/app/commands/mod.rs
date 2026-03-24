@@ -1,7 +1,13 @@
+use chrono::Utc;
+
 use crate::app::services::n2n_service::{preview_edge_command, start_edge, stop_edge};
 use crate::app::services::system_identity::current_system_username;
 use crate::app::state::DesktopState;
 use crate::ipc::models::{CommandResponse, InspectSnapshot, StartNetworkRequest, SystemIdentityResponse};
+
+fn now_string() -> String {
+    Utc::now().to_rfc3339()
+}
 
 pub fn command_summary() -> &'static str {
     "desktop command bridge ready"
@@ -26,6 +32,9 @@ pub fn start_network(state: &mut DesktopState, payload: StartNetworkRequest) -> 
         &state.current_supernode,
     );
     state.last_pid = outcome.pid;
+    if outcome.ok {
+        state.last_started_at = now_string();
+    }
 
     CommandResponse {
         ok: outcome.ok,
@@ -43,6 +52,7 @@ pub fn stop_network(state: &mut DesktopState) -> CommandResponse {
             let outcome = stop_edge(pid);
             if outcome.ok {
                 state.last_pid = None;
+                state.last_stopped_at = now_string();
             }
 
             CommandResponse {
@@ -93,5 +103,9 @@ fn build_inspect_snapshot(state: &DesktopState) -> InspectSnapshot {
             "idle".to_string()
         },
         last_command: state.last_command.clone(),
+        runtime_started_at: state.runtime_started_at.clone(),
+        last_started_at: state.last_started_at.clone(),
+        last_stopped_at: state.last_stopped_at.clone(),
+        last_pid: state.last_pid,
     }
 }

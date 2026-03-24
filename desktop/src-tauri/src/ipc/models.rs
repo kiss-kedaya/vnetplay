@@ -9,6 +9,10 @@ pub struct InspectSnapshot {
     pub command_preview: String,
     pub edge_state: String,
     pub last_command: String,
+    pub runtime_started_at: String,
+    pub last_started_at: String,
+    pub last_stopped_at: String,
+    pub last_pid: Option<u32>,
 }
 
 #[derive(Clone, Debug, Serialize)]
