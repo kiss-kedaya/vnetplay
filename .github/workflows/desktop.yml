@@ -13,7 +13,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: desktop/src-tauri
     steps:
       - uses: actions/checkout@v4
-      - name: Placeholder
-        run: echo desktop pipeline pending scaffold
+      - name: Build desktop rust core
+        run: cargo build

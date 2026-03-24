@@ -22,10 +22,10 @@
 - Create: `server/`
 - Create: `.github/workflows/`
 
-- [ ] Define focused directories for app, desktop, and server.
-- [ ] Keep page and service boundaries small so files do not grow into maintenance hazards.
-- [ ] Add root documentation for architecture, setup, and roadmap.
-- [ ] Commit repository foundation.
+- [x] Define focused directories for app, desktop, and server.
+- [x] Keep page and service boundaries small so files do not grow into maintenance hazards.
+- [x] Add root documentation for architecture, setup, and roadmap.
+- [x] Commit repository foundation.
 
 ### Task 2: Define UI and architecture rules
 
@@ -34,10 +34,10 @@
 - Create: `docs/ui-guidelines.md`
 - Create: `docs/modules.md`
 
-- [ ] Lock Vercel-inspired UI principles: minimal, strong spacing, crisp borders, restrained color.
-- [ ] Document no-emoji policy and SVG/icon-only asset rule.
-- [ ] Document file size discipline and module split strategy.
-- [ ] Commit architecture documents.
+- [x] Lock Vercel-inspired UI principles: minimal, strong spacing, crisp borders, restrained color.
+- [x] Document no-emoji policy and SVG/icon-only asset rule.
+- [x] Document file size discipline and module split strategy.
+- [x] Commit architecture documents.
 
 ## Chunk 2: Client shell
 
@@ -50,10 +50,10 @@
 - Create: `app/src/main.tsx`
 - Create: `app/src/App.tsx`
 
-- [ ] Create a frontend shell with React, TypeScript, Vite, and TailwindCSS.
-- [ ] Add layout primitives and icon system.
-- [ ] Create route skeletons for home, rooms, network, diagnostics, and settings.
-- [ ] Commit client shell.
+- [x] Create a frontend shell with React, TypeScript, Vite, and TailwindCSS.
+- [x] Add layout primitives and icon system.
+- [x] Create route skeletons for home, rooms, network, diagnostics, and settings.
+- [x] Commit client shell.
 
 ### Task 4: Build the Vercel-style UI system
 
@@ -64,10 +64,10 @@
 - Create: `app/src/components/icons/*.tsx`
 - Create: `app/src/styles/*.css`
 
-- [ ] Implement shared panel, section, table, empty state, and toolbar primitives.
-- [ ] Use SVG-based icons only.
-- [ ] Keep each component focused and under a maintainable size.
-- [ ] Commit UI system.
+- [x] Implement shared panel, section, table, empty state, and toolbar primitives.
+- [x] Use SVG-based icons only.
+- [x] Keep each component focused and under a maintainable size.
+- [x] Commit UI system.
 
 ## Chunk 3: Tauri desktop core
 
@@ -79,10 +79,10 @@
 - Create: `desktop/src-tauri/src/main.rs`
 - Create: `desktop/src-tauri/tauri.conf.json`
 
-- [ ] Wire Tauri shell to the frontend build.
-- [ ] Create command, service, and state modules.
-- [ ] Prepare process management for n2n edge binaries.
-- [ ] Commit desktop shell.
+- [x] Wire Tauri shell to the frontend build.
+- [x] Create command, service, and state modules.
+- [x] Prepare process management for n2n edge binaries.
+- [x] Commit desktop shell.
 
 ### Task 6: Add Rust-side process and diagnostics modules
 
@@ -92,10 +92,10 @@
 - Create: `desktop/src-tauri/src/network/route_probe.rs`
 - Create: `desktop/src-tauri/src/game/detector.rs`
 
-- [ ] Implement structured process startup and shutdown for edge.
-- [ ] Add status parsing and diagnostics collection.
-- [ ] Add future game detector module boundaries.
-- [ ] Commit network core modules.
+- [x] Implement structured process startup and shutdown for edge.
+- [x] Add status parsing and diagnostics collection.
+- [x] Add future game detector module boundaries.
+- [x] Commit network core modules.
 
 ## Chunk 4: Server foundation
 
@@ -107,10 +107,10 @@
 - Create: `server/src/api/router.rs`
 - Create: `server/src/config/mod.rs`
 
-- [ ] Create Axum server shell.
-- [ ] Add health endpoint and config loader.
-- [ ] Create modular feature folders for auth, rooms, nodes, and telemetry.
-- [ ] Commit server shell.
+- [x] Create Axum server shell.
+- [x] Add health endpoint and config loader.
+- [x] Create modular feature folders for auth, rooms, nodes, and telemetry.
+- [x] Commit server shell.
 
 ### Task 8: Add room and node API boundaries
 
@@ -119,10 +119,10 @@
 - Create: `server/src/nodes/*.rs`
 - Create: `server/src/models/*.rs`
 
-- [ ] Define room lifecycle and node heartbeat models.
-- [ ] Define config payloads for n2n clients.
-- [ ] Keep handlers separate from domain logic.
-- [ ] Commit API boundaries.
+- [x] Define room lifecycle and node heartbeat models.
+- [x] Define config payloads for n2n clients.
+- [x] Keep handlers separate from domain logic.
+- [x] Commit API boundaries.
 
 ## Chunk 5: Delivery pipeline
 
@@ -133,10 +133,10 @@
 - Create: `.github/workflows/server.yml`
 - Create: `.github/workflows/desktop.yml`
 
-- [ ] Add lint/build/test checks for frontend.
-- [ ] Add cargo fmt/clippy/test for server and desktop.
-- [ ] Keep workflows split by responsibility.
-- [ ] Commit CI.
+- [x] Add lint/build/test checks for frontend.
+- [x] Add cargo fmt/clippy/test for server and desktop.
+- [x] Keep workflows split by responsibility.
+- [x] Commit CI.
 
 ### Task 10: Publish repository metadata
 
@@ -146,6 +146,13 @@
 - Create: `.github/ISSUE_TEMPLATE/bug_report.yml`
 - Create: `.github/ISSUE_TEMPLATE/feature_request.yml`
 
-- [ ] Prepare public-repo basics.
-- [ ] Add contribution-facing metadata.
-- [ ] Commit repo metadata.
+- [x] Prepare public-repo basics.
+- [x] Add contribution-facing metadata.
+- [x] Commit repo metadata.
+
+## Live progress
+- [x] Repository scaffold, docs, public GitHub repo, and Actions baseline completed.
+- [x] Frontend shell is buildable and follows the Vercel-inspired modular dashboard direction.
+- [x] Rust control server exposes `/health` and `/api/dashboard/summary`.
+- [x] Desktop Rust shell compiles with n2n-related module boundaries in place.
+- [ ] Next pass: room API, node heartbeat ingestion, n2n process execution, and real desktop-client/server wiring.

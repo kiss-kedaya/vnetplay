@@ -13,7 +13,10 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
     steps:
       - uses: actions/checkout@v4
-      - name: Placeholder
-        run: echo server pipeline pending scaffold
+      - name: Build server
+        run: cargo build
