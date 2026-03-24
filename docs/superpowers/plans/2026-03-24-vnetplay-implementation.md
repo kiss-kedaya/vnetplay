@@ -180,4 +180,7 @@
 - [x] Home page now shows the latest connection context and recent command result summary.
 - [x] Settings page now supports editing default community and supernode address.
 - [x] Desktop network startup payload now carries community and supernode into the Rust command/service layer.
-- [ ] Next pass: replace remaining browser bridge fallbacks with wider real invoke usage and continue turning the shell into an end-to-end usable LAN client.
+- [x] Desktop workflow now uploads downloadable bundled artifacts for each platform build.
+- [x] Desktop package now exposes local release and portable build scripts for Windows standalone executable output.
+- [x] Local Windows release bundling now succeeds and emits `target/release/vnetplay-desktop.exe`, `.msi`, and NSIS setup `.exe` outputs.
+- [ ] Next pass: replace remaining browser bridge fallbacks with wider real invoke usage, harden error handling, improve persistence robustness, and continue turning the shell into an end-to-end usable LAN client.

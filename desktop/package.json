@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "tauri": "tauri",
-    "build": "tauri build --debug"
+    "build": "tauri build --debug",
+    "build:release": "tauri build",
+    "build:portable": "cargo build --release --manifest-path src-tauri/Cargo.toml"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.1.0"

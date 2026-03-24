@@ -45,4 +45,13 @@ jobs:
 
       - name: Build Tauri desktop app
         working-directory: desktop
-        run: npm run build
+        run: npm run build:release
+
+      - name: Upload bundled artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vnetplay-desktop-${{ matrix.os }}
+          path: |
+            desktop/src-tauri/target/release/bundle/**
+            desktop/src-tauri/target/release/vnetplay-desktop*
+          if-no-files-found: error
