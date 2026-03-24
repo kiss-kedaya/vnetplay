@@ -4,11 +4,15 @@ export type DesktopCommandResult = {
   pid?: number | null;
 };
 
+export type DesktopIdentityResult = {
+  systemUsername: string;
+};
+
 declare global {
   interface Window {
     __TAURI__?: {
       core?: {
-        invoke?: (command: string, payload?: Record<string, unknown>) => Promise<DesktopCommandResult>;
+        invoke?: <T = DesktopCommandResult>(command: string, payload?: Record<string, unknown>) => Promise<T>;
       };
     };
   }
@@ -18,10 +22,10 @@ async function invokeOrFallback(command: string): Promise<DesktopCommandResult> 
   const invoke = window.__TAURI__?.core?.invoke;
 
   if (invoke) {
-    return invoke(command);
+    return invoke<DesktopCommandResult>(command);
   }
 
-  if (command === "inspect_network") {
+  if (command === "inspect_network_command") {
     return {
       ok: true,
       detail: 'fallback invoke: Command { std: "n2n-edge" "-c" "vnetplay-room" "-l" "127.0.0.1:7777" }',
@@ -29,7 +33,7 @@ async function invokeOrFallback(command: string): Promise<DesktopCommandResult> 
     };
   }
 
-  if (command === "start_network") {
+  if (command === "start_network_command") {
     return {
       ok: true,
       detail: "fallback invoke: prepared to start n2n edge",
@@ -44,14 +48,26 @@ async function invokeOrFallback(command: string): Promise<DesktopCommandResult> 
   };
 }
 
+export async function readSystemIdentityBridge(): Promise<DesktopIdentityResult> {
+  const invoke = window.__TAURI__?.core?.invoke;
+
+  if (invoke) {
+    return invoke<DesktopIdentityResult>("get_system_identity_command");
+  }
+
+  return {
+    systemUsername: "player",
+  };
+}
+
 export function inspectNetworkBridge(): Promise<DesktopCommandResult> {
-  return invokeOrFallback("inspect_network");
+  return invokeOrFallback("inspect_network_command");
 }
 
 export function startNetworkBridge(): Promise<DesktopCommandResult> {
-  return invokeOrFallback("start_network");
+  return invokeOrFallback("start_network_command");
 }
 
 export function stopNetworkBridge(): Promise<DesktopCommandResult> {
-  return invokeOrFallback("stop_network");
+  return invokeOrFallback("stop_network_command");
 }

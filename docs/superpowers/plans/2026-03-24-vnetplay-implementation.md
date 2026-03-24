@@ -163,4 +163,7 @@
 - [x] Frontend network page now has a desktop bridge abstraction and control buttons for inspect/start/stop flows.
 - [x] GitHub Actions has been upgraded to multi-platform frontend/server/desktop matrix workflows.
 - [x] Desktop has been upgraded to a real Tauri app shell with local debug build success.
-- [ ] Next pass: finish chasing multi-platform Tauri app CI to fully green and replace browser bridge fallbacks with real invoke usage.
+- [x] GitHub Actions Tauri desktop matrix is now green across Windows, macOS, and Ubuntu.
+- [x] App startup now reads the current system username through the desktop bridge and surfaces it in the UI.
+- [x] Settings page now allows overriding the display username and resetting back to the detected system username.
+- [ ] Next pass: replace remaining browser bridge fallbacks with wider real invoke usage and continue turning the shell into an end-to-end usable LAN client.

@@ -1,9 +1,16 @@
 use crate::app::services::n2n_service::{preview_edge_command, start_edge, stop_edge};
+use crate::app::services::system_identity::current_system_username;
 use crate::app::state::DesktopState;
-use crate::ipc::models::CommandResponse;
+use crate::ipc::models::{CommandResponse, SystemIdentityResponse};
 
 pub fn command_summary() -> &'static str {
     "desktop command bridge ready"
+}
+
+pub fn get_system_identity() -> SystemIdentityResponse {
+    SystemIdentityResponse {
+        system_username: current_system_username(),
+    }
 }
 
 pub fn start_network(state: &mut DesktopState) -> CommandResponse {

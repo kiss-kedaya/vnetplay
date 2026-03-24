@@ -2,6 +2,7 @@ mod app {
     pub mod commands;
     pub mod services {
         pub mod n2n_service;
+        pub mod system_identity;
     }
     pub mod state;
 }
@@ -19,9 +20,14 @@ mod network {
 
 use std::sync::Mutex;
 
-use app::commands::{inspect_network, start_network, stop_network};
+use app::commands::{get_system_identity, inspect_network, start_network, stop_network};
 use app::state::DesktopState;
-use ipc::models::CommandResponse;
+use ipc::models::{CommandResponse, SystemIdentityResponse};
+
+#[tauri::command]
+fn get_system_identity_command() -> SystemIdentityResponse {
+    get_system_identity()
+}
 
 #[tauri::command]
 fn inspect_network_command() -> CommandResponse {
@@ -44,6 +50,7 @@ pub fn run() {
     tauri::Builder::default()
         .manage(Mutex::new(DesktopState::default()))
         .invoke_handler(tauri::generate_handler![
+            get_system_identity_command,
             inspect_network_command,
             start_network_command,
             stop_network_command

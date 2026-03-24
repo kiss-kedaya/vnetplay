@@ -1,9 +1,11 @@
 type TopbarProps = {
   title: string;
   description: string;
+  username: string;
+  profileSource: "system" | "custom";
 };
 
-export function Topbar({ title, description }: TopbarProps) {
+export function Topbar({ title, description, username, profileSource }: TopbarProps) {
   return (
     <header className="topbar card">
       <div>
@@ -12,8 +14,11 @@ export function Topbar({ title, description }: TopbarProps) {
         <p>{description}</p>
       </div>
       <div className="topbar-actions">
-        <button className="ghost-button" type="button">房间列表</button>
-        <button className="primary-button" type="button">启动网络</button>
+        <div className="card-subtle profile-chip">
+          <div className="profile-chip-label">当前玩家</div>
+          <div className="profile-chip-value">{username}</div>
+          <div className="profile-chip-meta">{profileSource === "system" ? "系统用户名" : "自定义用户名"}</div>
+        </div>
       </div>
     </header>
   );
