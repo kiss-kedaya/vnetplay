@@ -185,4 +185,6 @@
 - [x] Local Windows release bundling now succeeds and emits `target/release/vnetplay-desktop.exe`, `.msi`, and NSIS setup `.exe` outputs.
 - [x] Frontend desktop bridge now reports explicit desktop-runtime-unavailable errors instead of fake successful fallbacks for start/stop/inspect commands.
 - [x] Frontend API layer now uses shared HTTP helpers so room creation/join failures surface the actual backend error text.
-- [ ] Next pass: improve persistence robustness, add richer structured inspect output, and continue turning the shell into an end-to-end usable LAN client.
+- [x] Server room persistence now tracks `created_at` and `last_active_at`, and normalizes legacy room records during load.
+- [x] Rooms UI now surfaces room activity timestamps for better state visibility.
+- [ ] Next pass: add richer structured inspect output, strengthen release automation, and continue turning the shell into an end-to-end usable LAN client.

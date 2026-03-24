@@ -70,14 +70,12 @@ async fn dashboard_summary(State(state): State<AppState>) -> Json<DashboardSumma
     let rooms = state.rooms.lock().expect("rooms mutex poisoned");
     let heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
 
-    let active_room = rooms.first().cloned().unwrap_or(RoomSummary {
-        room_id: "empty-room".to_string(),
-        game: "Unknown".to_string(),
-        mode: "LAN Overlay".to_string(),
-        members: 0,
-        host: "system".to_string(),
-        participants: Vec::new(),
-    });
+    let active_room = rooms.first().cloned().unwrap_or(RoomSummary::new(
+        "empty-room".to_string(),
+        "Unknown".to_string(),
+        "LAN Overlay".to_string(),
+        "system".to_string(),
+    ));
 
     let overlay_ip = heartbeats
         .values()
@@ -120,14 +118,12 @@ async fn create_room(
         return Err((StatusCode::CONFLICT, "room already exists".to_string()));
     }
 
-    let mut room = RoomSummary {
-        room_id: room_id.to_string(),
-        game: payload.game.trim().to_string(),
-        mode: payload.mode.trim().to_string(),
-        members: 0,
-        host: username.to_string(),
-        participants: Vec::new(),
-    };
+    let mut room = RoomSummary::new(
+        room_id.to_string(),
+        payload.game.trim().to_string(),
+        payload.mode.trim().to_string(),
+        username.to_string(),
+    );
     room.ensure_participant(username);
     rooms.insert(0, room.clone());
     drop(rooms);

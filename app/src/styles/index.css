@@ -263,6 +263,10 @@ p {
   grid-template-columns: 1.2fr 1fr 1fr 0.5fr 0.8fr 1.8fr;
 }
 
+.room-table-row-extended {
+  grid-template-columns: 1.1fr 0.9fr 1fr 0.5fr 0.8fr 1.1fr 1.7fr;
+}
+
 .table-head {
   color: #a1a1aa;
 }

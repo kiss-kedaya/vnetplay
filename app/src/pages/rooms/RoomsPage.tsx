@@ -109,21 +109,23 @@ export function RoomsPage({ profile, settings }: RoomsPageProps) {
       </div>
 
       <div className="table-grid">
-        <div className="table-row table-head room-table-row">
+        <div className="table-row table-head room-table-row room-table-row-extended">
           <span>房间</span>
           <span>游戏</span>
           <span>模式</span>
           <span>人数</span>
           <span>房主</span>
+          <span>最近活跃</span>
           <span>成员</span>
         </div>
         {rooms.map((room) => (
-          <div key={room.roomId} className="table-row room-table-row">
+          <div key={room.roomId} className="table-row room-table-row room-table-row-extended">
             <span>{room.roomId}</span>
             <span>{room.game}</span>
             <span>{room.mode}</span>
             <span>{room.members}</span>
             <span>{room.host}</span>
+            <span>{room.lastActiveAt}</span>
             <span>{room.participants.join(" / ")}</span>
           </div>
         ))}
@@ -133,6 +135,8 @@ export function RoomsPage({ profile, settings }: RoomsPageProps) {
         <div className="card-subtle settings-block">
           <div className="settings-label">当前选中房间</div>
           <div className="settings-value">{activeRoom.roomId}</div>
+          <div className="settings-meta">创建时间：{activeRoom.createdAt}</div>
+          <div className="settings-meta">最近活跃：{activeRoom.lastActiveAt}</div>
           <div className="settings-meta">成员：{activeRoom.participants.join(" / ")}</div>
         </div>
       ) : null}

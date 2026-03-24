@@ -7,6 +7,8 @@ export type RoomItem = {
   members: number;
   host: string;
   participants: string[];
+  createdAt: string;
+  lastActiveAt: string;
 };
 
 export type RoomPayload = {
@@ -24,6 +26,8 @@ const fallbackRooms: RoomItem[] = [
     members: 3,
     host: "kedaya-main",
     participants: ["kedaya-main", "kedaya-vps", "relay-preferred"],
+    createdAt: "2026-03-24 10:09:00",
+    lastActiveAt: "2026-03-24 10:30:00",
   },
   {
     roomId: "mc-build-world",
@@ -32,6 +36,8 @@ const fallbackRooms: RoomItem[] = [
     members: 5,
     host: "kedaya-vps",
     participants: ["kedaya-vps", "kedaya-main", "builder-01", "builder-02", "builder-03"],
+    createdAt: "2026-03-24 11:28:00",
+    lastActiveAt: "2026-03-24 11:53:00",
   },
 ];
 
@@ -43,6 +49,8 @@ function mapRoom(item: Record<string, unknown>): RoomItem {
     members: Number(item.members),
     host: String(item.host),
     participants: Array.isArray(item.participants) ? item.participants.map((entry) => String(entry)) : [],
+    createdAt: String(item.created_at ?? "--"),
+    lastActiveAt: String(item.last_active_at ?? "--"),
   };
 }
 

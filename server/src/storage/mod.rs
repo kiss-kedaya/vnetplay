@@ -20,6 +20,10 @@ impl PersistedState {
             heartbeats: HashMap::new(),
         }
     }
+
+    pub fn normalize(&mut self) {
+        self.rooms.iter_mut().for_each(RoomSummary::normalize);
+    }
 }
 
 pub fn default_state_path() -> PathBuf {
@@ -28,7 +32,11 @@ pub fn default_state_path() -> PathBuf {
 
 pub fn load_state(path: &Path) -> PersistedState {
     match fs::read_to_string(path) {
-        Ok(content) => serde_json::from_str(&content).unwrap_or_else(|_| PersistedState::default_state()),
+        Ok(content) => {
+            let mut state = serde_json::from_str(&content).unwrap_or_else(|_| PersistedState::default_state());
+            state.normalize();
+            state
+        }
         Err(_) => PersistedState::default_state(),
     }
 }
