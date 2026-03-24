@@ -20,7 +20,7 @@ type PageProps = {
 function renderPage(key: string, props: PageProps) {
   switch (key) {
     case "rooms":
-      return <RoomsPage />;
+      return <RoomsPage profile={props.profile} />;
     case "network":
       return <NetworkPage />;
     case "diagnostics":

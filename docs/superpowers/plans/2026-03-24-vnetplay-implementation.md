@@ -166,4 +166,6 @@
 - [x] GitHub Actions Tauri desktop matrix is now green across Windows, macOS, and Ubuntu.
 - [x] App startup now reads the current system username through the desktop bridge and surfaces it in the UI.
 - [x] Settings page now allows overriding the display username and resetting back to the detected system username.
-- [ ] Next pass: replace remaining browser bridge fallbacks with wider real invoke usage and continue turning the shell into an end-to-end usable LAN client.
+- [x] Rooms page now supports creating a room and joining an existing room against the live Rust server API.
+- [x] Current username is now written into room participant lists when creating or joining a room.
+- [ ] Next pass: replace remaining browser bridge fallbacks with wider real invoke usage, add server address/default room settings, and continue turning the shell into an end-to-end usable LAN client.

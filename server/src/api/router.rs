@@ -1,5 +1,10 @@
-use axum::{extract::State, routing::{get, post}, Json, Router};
-use serde::Serialize;
+use axum::{
+    extract::State,
+    http::StatusCode,
+    routing::{get, post},
+    Json, Router,
+};
+use serde::{Deserialize, Serialize};
 
 use crate::models::AppState;
 use crate::nodes::NodeHeartbeat;
@@ -40,6 +45,20 @@ struct HeartbeatResponse {
     node_id: String,
 }
 
+#[derive(Deserialize)]
+struct CreateRoomRequest {
+    room_id: String,
+    game: String,
+    mode: String,
+    username: String,
+}
+
+#[derive(Deserialize)]
+struct JoinRoomRequest {
+    room_id: String,
+    username: String,
+}
+
 async fn health() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok",
@@ -57,6 +76,7 @@ async fn dashboard_summary(State(state): State<AppState>) -> Json<DashboardSumma
         mode: "LAN Overlay".to_string(),
         members: 0,
         host: "system".to_string(),
+        participants: Vec::new(),
     });
 
     let overlay_ip = heartbeats
@@ -81,6 +101,63 @@ async fn dashboard_summary(State(state): State<AppState>) -> Json<DashboardSumma
 async fn rooms(State(state): State<AppState>) -> Json<Vec<RoomSummary>> {
     let rooms = state.rooms.lock().expect("rooms mutex poisoned");
     Json(rooms.clone())
+}
+
+async fn create_room(
+    State(state): State<AppState>,
+    Json(payload): Json<CreateRoomRequest>,
+) -> Result<Json<RoomSummary>, (StatusCode, String)> {
+    let room_id = payload.room_id.trim();
+    let username = payload.username.trim();
+
+    if room_id.is_empty() || username.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "room_id and username are required".to_string()));
+    }
+
+    let mut rooms = state.rooms.lock().expect("rooms mutex poisoned");
+
+    if rooms.iter().any(|item| item.room_id == room_id) {
+        return Err((StatusCode::CONFLICT, "room already exists".to_string()));
+    }
+
+    let mut room = RoomSummary {
+        room_id: room_id.to_string(),
+        game: payload.game.trim().to_string(),
+        mode: payload.mode.trim().to_string(),
+        members: 0,
+        host: username.to_string(),
+        participants: Vec::new(),
+    };
+    room.ensure_participant(username);
+    rooms.insert(0, room.clone());
+    drop(rooms);
+    state.persist();
+
+    Ok(Json(room))
+}
+
+async fn join_room(
+    State(state): State<AppState>,
+    Json(payload): Json<JoinRoomRequest>,
+) -> Result<Json<RoomSummary>, (StatusCode, String)> {
+    let room_id = payload.room_id.trim();
+    let username = payload.username.trim();
+
+    if room_id.is_empty() || username.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "room_id and username are required".to_string()));
+    }
+
+    let mut rooms = state.rooms.lock().expect("rooms mutex poisoned");
+
+    if let Some(room) = rooms.iter_mut().find(|item| item.room_id == room_id) {
+        room.ensure_participant(username);
+        let updated = room.clone();
+        drop(rooms);
+        state.persist();
+        return Ok(Json(updated));
+    }
+
+    Err((StatusCode::NOT_FOUND, "room not found".to_string()))
 }
 
 async fn network_status(State(state): State<AppState>) -> Json<NetworkStatus> {
@@ -124,6 +201,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/api/dashboard/summary", get(dashboard_summary))
         .route("/api/rooms", get(rooms))
+        .route("/api/rooms/create", post(create_room))
+        .route("/api/rooms/join", post(join_room))
         .route("/api/network/status", get(network_status))
         .route("/api/nodes/heartbeat", post(node_heartbeat))
         .with_state(state)

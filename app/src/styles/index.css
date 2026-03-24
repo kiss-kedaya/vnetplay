@@ -24,7 +24,8 @@ body {
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -258,6 +259,10 @@ p {
   background: rgba(255, 255, 255, 0.04);
 }
 
+.room-table-row {
+  grid-template-columns: 1.2fr 1fr 1fr 0.5fr 0.8fr 1.8fr;
+}
+
 .table-head {
   color: #a1a1aa;
 }
@@ -298,12 +303,14 @@ p {
   margin-bottom: 8px;
 }
 
-.settings-page {
+.settings-page,
+.rooms-page {
   display: grid;
   gap: 20px;
 }
 
-.settings-grid {
+.settings-grid,
+.rooms-actions-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
@@ -334,7 +341,8 @@ p {
   }
 
   .page-grid,
-  .settings-grid {
+  .settings-grid,
+  .rooms-actions-grid {
     grid-template-columns: 1fr;
   }
 
@@ -342,7 +350,8 @@ p {
     flex-direction: column;
   }
 
-  .table-row {
+  .table-row,
+  .room-table-row {
     grid-template-columns: 1fr;
   }
 }
