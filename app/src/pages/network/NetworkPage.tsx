@@ -156,7 +156,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       serverBaseUrl: settings.serverBaseUrl,
       success: result.ok,
       detail: result.detail,
-      pid: result.pid ?? null,
+      pid: result.inspect?.pidAlive ? (result.pid ?? null) : null,
       source: "inspect",
       updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
       runtimeDurationLabel: result.inspect?.runtimeDurationLabel ?? "idle",
@@ -226,7 +226,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       <div className="command-log card-subtle">
         <div className="command-log-label">桌面命令结果</div>
         <div className="command-log-detail">{commandResult.detail}</div>
-        <div className="command-log-meta">状态: {commandResult.ok ? "success" : "error"} | PID: {commandResult.pid ?? "n/a"} | 运行时长: {inspect.runtimeDurationLabel}</div>
+        <div className="command-log-meta">状态: {commandResult.ok ? "success" : "error"} | PID: {commandResult.pid ?? "n/a"} | 存活: {inspect.pidAlive ? "alive" : "cleaned/idle"} | 运行时长: {inspect.runtimeDurationLabel}</div>
       </div>
       <div className="card-subtle settings-block">
         <div className="settings-label">服务端 recent action</div>

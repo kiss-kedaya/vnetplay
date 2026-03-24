@@ -36,6 +36,14 @@ fn format_duration_label(seconds: u64) -> String {
     }
 }
 
+fn cleanup_stale_pid(state: &mut DesktopState) {
+    if state.last_pid.is_some() {
+        state.last_pid = None;
+        state.last_stopped_at = now_string();
+        state.last_command = "inspect-auto-cleanup".to_string();
+    }
+}
+
 pub fn command_summary() -> &'static str {
     "desktop command bridge ready"
 }
@@ -100,31 +108,33 @@ pub fn stop_network(state: &mut DesktopState) -> CommandResponse {
     }
 }
 
-pub fn inspect_network(state: &DesktopState) -> CommandResponse {
+pub fn inspect_network(state: &mut DesktopState) -> CommandResponse {
     let inspect = build_inspect_snapshot(state);
-    let detail = if state.last_pid.is_some() && !inspect.pid_alive {
-        format!(
-            "stale pid detected: recorded pid {:?} is not alive; {}",
-            inspect.last_pid,
-            preview_edge_command(
-                &state.active_room,
-                &state.current_username,
-                &state.current_community,
-                &state.current_supernode,
-            )
-        )
-    } else {
-        preview_edge_command(
+
+    if state.last_pid.is_some() && !inspect.pid_alive {
+        let stale_pid = inspect.last_pid;
+        cleanup_stale_pid(state);
+        let cleaned = build_inspect_snapshot(state);
+
+        return CommandResponse {
+            ok: true,
+            detail: format!(
+                "stale pid detected and cleaned up automatically: recorded pid {:?} was not alive",
+                stale_pid
+            ),
+            pid: None,
+            inspect: Some(cleaned),
+        };
+    }
+
+    CommandResponse {
+        ok: true,
+        detail: preview_edge_command(
             &state.active_room,
             &state.current_username,
             &state.current_community,
             &state.current_supernode,
-        )
-    };
-
-    CommandResponse {
-        ok: inspect.pid_alive || inspect.last_pid.is_none(),
-        detail,
+        ),
         pid: state.last_pid,
         inspect: Some(inspect),
     }

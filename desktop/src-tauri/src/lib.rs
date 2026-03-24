@@ -31,8 +31,8 @@ fn get_system_identity_command() -> SystemIdentityResponse {
 
 #[tauri::command]
 fn inspect_network_command(state: tauri::State<Mutex<DesktopState>>) -> CommandResponse {
-    let state = state.lock().expect("desktop state mutex poisoned");
-    inspect_network(&state)
+    let mut state = state.lock().expect("desktop state mutex poisoned");
+    inspect_network(&mut state)
 }
 
 #[tauri::command]
