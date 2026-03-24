@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.target/
+target/
+.vscode/
+.DS_Store
+.env
+.env.*
+coverage/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+.desktop-cache/

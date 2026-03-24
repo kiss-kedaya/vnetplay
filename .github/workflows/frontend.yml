@@ -1,0 +1,22 @@
+name: frontend
+
+on:
+  push:
+    paths:
+      - 'app/**'
+      - '.github/workflows/frontend.yml'
+  pull_request:
+    paths:
+      - 'app/**'
+      - '.github/workflows/frontend.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Placeholder
+        run: echo frontend pipeline pending scaffold
