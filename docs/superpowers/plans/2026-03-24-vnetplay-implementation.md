@@ -193,4 +193,5 @@
 - [x] Rooms page now highlights the current connected room by comparing local recent connection context and server recent action.
 - [x] Desktop workflow now supports GitHub Release publishing on `v*` tags or manual dispatch, aggregating multi-platform artifacts into one downloadable release.
 - [x] Desktop start / stop / inspect actions now sync back into the server-side `recent_action` feed so local commands and server state stay aligned.
+- [x] Home page now warns when local recent command state and server-side recent action drift apart.
 - [ ] Next pass: continue turning the shell into an end-to-end usable LAN client.

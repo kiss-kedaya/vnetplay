@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { InfoCard } from "../../components/cards/InfoCard";
 import { StatusPill } from "../../components/status/StatusPill";
 import { fetchDashboardSummary, type DashboardSummary } from "../../lib/api/dashboard";
@@ -43,6 +43,31 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
   const [summary, setSummary] = useState<DashboardSummary>(defaultDashboardSummary);
   const [serverStatus, setServerStatus] = useState<NetworkStatus>(fallbackServerStatus);
   const [feedback, setFeedback] = useState("可以直接快速创建默认房间，或快速加入当前活跃房间。");
+
+  const mismatchWarning = useMemo(() => {
+    const serverAction = serverStatus.recentAction;
+    const isComparableServerAction = serverAction.action.startsWith("desktop-");
+
+    if (!isComparableServerAction) {
+      return null;
+    }
+
+    const roomMismatch = connectionContext.roomId !== serverAction.roomId;
+    const userMismatch = connectionContext.username !== serverAction.username;
+    const statusMismatch = connectionContext.success !== serverAction.success;
+
+    if (!roomMismatch && !userMismatch && !statusMismatch) {
+      return null;
+    }
+
+    const reasons = [
+      roomMismatch ? `房间不一致（本地 ${connectionContext.roomId} / 服务端 ${serverAction.roomId}）` : null,
+      userMismatch ? `用户不一致（本地 ${connectionContext.username} / 服务端 ${serverAction.username}）` : null,
+      statusMismatch ? `执行状态不一致（本地 ${connectionContext.success ? "success" : "error"} / 服务端 ${serverAction.success ? "success" : "error"}）` : null,
+    ].filter(Boolean);
+
+    return reasons.join("；");
+  }, [connectionContext, serverStatus.recentAction]);
 
   async function refreshSummary() {
     const [nextSummary, nextStatus] = await Promise.all([fetchDashboardSummary(), fetchNetworkStatus()]);
@@ -164,6 +189,12 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
           <h2>最近一次连接上下文</h2>
           <p>优先展示服务端侧最近动作，同时保留本地桌面最近执行结果，方便判断当前状态是否一致。</p>
         </div>
+        {mismatchWarning ? (
+          <div className="mismatch-banner">
+            <div className="mismatch-banner-title">检测到本地与服务端状态不一致</div>
+            <div className="mismatch-banner-detail">{mismatchWarning}</div>
+          </div>
+        ) : null}
         <div className="key-value-grid">
           <div><strong>服务端动作</strong><span>{serverStatus.recentAction.action}</span></div>
           <div><strong>服务端房间</strong><span>{serverStatus.recentAction.roomId}</span></div>

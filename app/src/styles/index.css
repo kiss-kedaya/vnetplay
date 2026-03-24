@@ -325,6 +325,24 @@ p {
   margin-bottom: 8px;
 }
 
+.mismatch-banner {
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  background: rgba(133, 77, 14, 0.18);
+}
+
+.mismatch-banner-title {
+  color: #fbbf24;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.mismatch-banner-detail {
+  color: #fde68a;
+}
+
 .settings-page,
 .rooms-page,
 .network-page {
