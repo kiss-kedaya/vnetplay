@@ -174,4 +174,6 @@
 - [x] Home page now supports quick create and quick join actions using the current username, configured server base URL, and default room name.
 - [x] Network page start action now passes the current username and configured default room into the desktop bridge.
 - [x] Desktop Tauri command/state layer now tracks active room and current username for network startup and command inspection.
+- [x] Settings page now supports an auto-connect-on-launch toggle for the network page.
+- [x] Network page now shows a startup context preview card and can auto-start the network flow once per page load when enabled.
 - [ ] Next pass: replace remaining browser bridge fallbacks with wider real invoke usage and continue turning the shell into an end-to-end usable LAN client.

@@ -304,7 +304,8 @@ p {
 }
 
 .settings-page,
-.rooms-page {
+.rooms-page,
+.network-page {
   display: grid;
   gap: 20px;
 }
@@ -329,6 +330,13 @@ p {
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(9, 9, 11, 0.72);
   color: #fafafa;
+}
+
+.settings-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e4e4e7;
 }
 
 .settings-actions {

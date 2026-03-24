@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { fetchNetworkStatus, type NetworkStatus } from "../../lib/api/network";
 import {
   inspectNetworkBridge,
@@ -31,27 +31,46 @@ type NetworkPageProps = {
 export function NetworkPage({ profile, settings }: NetworkPageProps) {
   const [status, setStatus] = useState<NetworkStatus>(fallbackStatus);
   const [commandResult, setCommandResult] = useState<DesktopCommandResult>(idleResult);
+  const autoConnectTriggeredRef = useRef(false);
 
   useEffect(() => {
     fetchNetworkStatus().then(setStatus);
   }, [settings.serverBaseUrl]);
 
-  async function handleStartNetwork() {
+  async function handleStartNetwork(trigger: "manual" | "auto" = "manual") {
     const result = await startNetworkBridge({
       roomId: settings.defaultRoomName,
       username: profile.username,
     });
-    setCommandResult(result);
+
+    setCommandResult({
+      ...result,
+      detail: trigger === "auto" ? `auto-connect: ${result.detail}` : result.detail,
+    });
   }
 
+  useEffect(() => {
+    if (!settings.autoConnectOnLaunch || autoConnectTriggeredRef.current) {
+      return;
+    }
+
+    autoConnectTriggeredRef.current = true;
+    handleStartNetwork("auto");
+  }, [settings.autoConnectOnLaunch, settings.defaultRoomName, profile.username]);
+
   return (
-    <section className="card page-card">
+    <section className="card page-card network-page">
       <div className="section-header">
         <h2>网络状态</h2>
         <p>n2n edge、supernode 路径和当前链路质量都在这里收口展示。启动网络时会自动带当前用户名 {profile.username} 和默认房间 {settings.defaultRoomName}。</p>
       </div>
+      <div className="card-subtle settings-block">
+        <div className="settings-label">启动上下文预览</div>
+        <div className="settings-value">{profile.username} @ {settings.defaultRoomName}</div>
+        <div className="settings-meta">服务端：{settings.serverBaseUrl} · 自动连接：{settings.autoConnectOnLaunch ? "已开启" : "未开启"}</div>
+      </div>
       <div className="network-actions">
-        <button className="primary-button" type="button" onClick={handleStartNetwork}>
+        <button className="primary-button" type="button" onClick={() => handleStartNetwork("manual")}>
           启动网络
         </button>
         <button className="ghost-button" type="button" onClick={() => stopNetworkBridge().then(setCommandResult)}>
