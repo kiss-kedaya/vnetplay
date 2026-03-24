@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { fetchNetworkStatus, type NetworkStatus } from "../../lib/api/network";
+import { fetchNetworkStatus, syncRecentAction, type NetworkStatus } from "../../lib/api/network";
 import {
   inspectNetworkBridge,
   startNetworkBridge,
@@ -61,8 +61,33 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
 
   const inspect = useMemo(() => commandResult.inspect ?? idleInspect, [commandResult.inspect]);
 
+  async function refreshStatus() {
+    const nextStatus = await fetchNetworkStatus();
+    setStatus(nextStatus);
+    return nextStatus;
+  }
+
+  async function syncActionToServer(action: string, result: DesktopCommandResult) {
+    try {
+      const recentAction = await syncRecentAction({
+        action,
+        roomId: settings.defaultRoomName,
+        username: profile.username,
+        detail: result.detail,
+        success: result.ok,
+      });
+
+      setStatus((current) => ({
+        ...current,
+        recentAction,
+      }));
+    } catch {
+      await refreshStatus();
+    }
+  }
+
   useEffect(() => {
-    fetchNetworkStatus().then(setStatus);
+    refreshStatus();
   }, [settings.serverBaseUrl]);
 
   async function handleStartNetwork(trigger: "manual" | "auto" = "manual") {
@@ -74,10 +99,12 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     });
 
     const detail = trigger === "auto" ? `auto-connect: ${result.detail}` : result.detail;
-    setCommandResult({
+    const finalResult = {
       ...result,
       detail,
-    });
+    };
+    setCommandResult(finalResult);
+    await syncActionToServer(trigger === "auto" ? "desktop-auto-start" : "desktop-start", finalResult);
     onUpdateConnectionContext({
       roomId: settings.defaultRoomName,
       username: profile.username,
@@ -93,6 +120,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
   async function handleStopNetwork() {
     const result = await stopNetworkBridge();
     setCommandResult(result);
+    await syncActionToServer("desktop-stop", result);
     onUpdateConnectionContext({
       roomId: settings.defaultRoomName,
       username: profile.username,
@@ -108,6 +136,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
   async function handleInspectNetwork() {
     const result = await inspectNetworkBridge();
     setCommandResult(result);
+    await syncActionToServer("desktop-inspect", result);
     onUpdateConnectionContext({
       roomId: settings.defaultRoomName,
       username: profile.username,
@@ -183,6 +212,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
         <div className="settings-label">最近一次连接记录</div>
         <div className="settings-value">{connectionContext.roomId}</div>
         <div className="settings-meta">来源：{connectionContext.source} · 时间：{connectionContext.updatedAt}</div>
+        <div className="settings-meta">服务端 recent action：{status.recentAction.action} · {status.recentAction.updatedAt}</div>
       </div>
     </section>
   );

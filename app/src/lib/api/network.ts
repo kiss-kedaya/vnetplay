@@ -1,4 +1,4 @@
-import { getJson } from "./http";
+import { getJson, postJson } from "./http";
 
 export type RecentAction = {
   action: string;
@@ -21,6 +21,14 @@ export type NetworkStatus = {
   recentAction: RecentAction;
 };
 
+export type SyncRecentActionPayload = {
+  action: string;
+  roomId: string;
+  username: string;
+  detail: string;
+  success: boolean;
+};
+
 const fallbackStatus: NetworkStatus = {
   overlayIp: "10.24.8.12",
   relay: "Tokyo Relay / VPS",
@@ -40,10 +48,22 @@ const fallbackStatus: NetworkStatus = {
   },
 };
 
+function mapRecentAction(payload: Record<string, unknown> | undefined): RecentAction {
+  const recent = payload ?? {};
+
+  return {
+    action: String(recent.action ?? fallbackStatus.recentAction.action),
+    roomId: String(recent.room_id ?? fallbackStatus.recentAction.roomId),
+    username: String(recent.username ?? fallbackStatus.recentAction.username),
+    detail: String(recent.detail ?? fallbackStatus.recentAction.detail),
+    success: Boolean(recent.success ?? fallbackStatus.recentAction.success),
+    updatedAt: String(recent.updated_at ?? fallbackStatus.recentAction.updatedAt),
+  };
+}
+
 export async function fetchNetworkStatus(): Promise<NetworkStatus> {
   try {
     const payload = await getJson<Record<string, unknown>>("/api/network/status");
-    const recent = (payload.recent_action as Record<string, unknown> | undefined) ?? {};
 
     return {
       overlayIp: String(payload.overlay_ip ?? fallbackStatus.overlayIp),
@@ -54,16 +74,21 @@ export async function fetchNetworkStatus(): Promise<NetworkStatus> {
       community: String(payload.community ?? fallbackStatus.community),
       supernode: String(payload.supernode ?? fallbackStatus.supernode),
       secretMasked: String(payload.secret_masked ?? fallbackStatus.secretMasked),
-      recentAction: {
-        action: String(recent.action ?? fallbackStatus.recentAction.action),
-        roomId: String(recent.room_id ?? fallbackStatus.recentAction.roomId),
-        username: String(recent.username ?? fallbackStatus.recentAction.username),
-        detail: String(recent.detail ?? fallbackStatus.recentAction.detail),
-        success: Boolean(recent.success ?? fallbackStatus.recentAction.success),
-        updatedAt: String(recent.updated_at ?? fallbackStatus.recentAction.updatedAt),
-      },
+      recentAction: mapRecentAction(payload.recent_action as Record<string, unknown> | undefined),
     };
   } catch {
     return fallbackStatus;
   }
+}
+
+export async function syncRecentAction(payload: SyncRecentActionPayload): Promise<RecentAction> {
+  const response = await postJson<Record<string, unknown>>("/api/network/action", {
+    action: payload.action,
+    room_id: payload.roomId,
+    username: payload.username,
+    detail: payload.detail,
+    success: payload.success,
+  });
+
+  return mapRecentAction(response);
 }

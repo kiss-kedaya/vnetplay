@@ -60,6 +60,15 @@ struct JoinRoomRequest {
     username: String,
 }
 
+#[derive(Deserialize)]
+struct SyncRecentActionRequest {
+    action: String,
+    room_id: String,
+    username: String,
+    detail: String,
+    success: bool,
+}
+
 async fn health() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok",
@@ -198,6 +207,26 @@ async fn network_status(State(state): State<AppState>) -> Json<NetworkStatus> {
     })
 }
 
+async fn sync_recent_action(
+    State(state): State<AppState>,
+    Json(payload): Json<SyncRecentActionRequest>,
+) -> Result<Json<RecentAction>, (StatusCode, String)> {
+    let action = payload.action.trim();
+    let room_id = payload.room_id.trim();
+    let username = payload.username.trim();
+    let detail = payload.detail.trim();
+
+    if action.is_empty() || room_id.is_empty() || username.is_empty() || detail.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "action, room_id, username, and detail are required".to_string()));
+    }
+
+    let recent_action = RecentAction::new(action, room_id, username, detail, payload.success);
+    state.set_recent_action(recent_action.clone());
+    state.persist();
+
+    Ok(Json(recent_action))
+}
+
 async fn node_heartbeat(
     State(state): State<AppState>,
     Json(payload): Json<NodeHeartbeat>,
@@ -228,6 +257,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/rooms/create", post(create_room))
         .route("/api/rooms/join", post(join_room))
         .route("/api/network/status", get(network_status))
+        .route("/api/network/action", post(sync_recent_action))
         .route("/api/nodes/heartbeat", post(node_heartbeat))
         .with_state(state)
 }
