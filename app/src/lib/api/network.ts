@@ -1,11 +1,24 @@
 import { getJson } from "./http";
 
+export type RecentAction = {
+  action: string;
+  roomId: string;
+  username: string;
+  detail: string;
+  success: boolean;
+  updatedAt: string;
+};
+
 export type NetworkStatus = {
   overlayIp: string;
   relay: string;
   routeMode: string;
   edgeState: string;
   latency: string;
+  community: string;
+  supernode: string;
+  secretMasked: string;
+  recentAction: RecentAction;
 };
 
 const fallbackStatus: NetworkStatus = {
@@ -14,17 +27,41 @@ const fallbackStatus: NetworkStatus = {
   routeMode: "relay-preferred",
   edgeState: "running",
   latency: "32 ms",
+  community: "vnetplay-room",
+  supernode: "127.0.0.1:7777",
+  secretMasked: "********",
+  recentAction: {
+    action: "idle",
+    roomId: "未连接",
+    username: "player",
+    detail: "尚未收到服务端侧最近动作",
+    success: true,
+    updatedAt: "--",
+  },
 };
 
 export async function fetchNetworkStatus(): Promise<NetworkStatus> {
   try {
     const payload = await getJson<Record<string, unknown>>("/api/network/status");
+    const recent = (payload.recent_action as Record<string, unknown> | undefined) ?? {};
+
     return {
       overlayIp: String(payload.overlay_ip ?? fallbackStatus.overlayIp),
       relay: String(payload.relay ?? fallbackStatus.relay),
       routeMode: String(payload.route_mode ?? fallbackStatus.routeMode),
       edgeState: String(payload.edge_state ?? fallbackStatus.edgeState),
       latency: String(payload.latency ?? fallbackStatus.latency),
+      community: String(payload.community ?? fallbackStatus.community),
+      supernode: String(payload.supernode ?? fallbackStatus.supernode),
+      secretMasked: String(payload.secret_masked ?? fallbackStatus.secretMasked),
+      recentAction: {
+        action: String(recent.action ?? fallbackStatus.recentAction.action),
+        roomId: String(recent.room_id ?? fallbackStatus.recentAction.roomId),
+        username: String(recent.username ?? fallbackStatus.recentAction.username),
+        detail: String(recent.detail ?? fallbackStatus.recentAction.detail),
+        success: Boolean(recent.success ?? fallbackStatus.recentAction.success),
+        updatedAt: String(recent.updated_at ?? fallbackStatus.recentAction.updatedAt),
+      },
     };
   } catch {
     return fallbackStatus;

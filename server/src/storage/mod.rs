@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
+use crate::models::RecentAction;
 use crate::nodes::NodeHeartbeat;
 use crate::rooms::{default_rooms, RoomSummary};
 
@@ -11,6 +12,8 @@ use crate::rooms::{default_rooms, RoomSummary};
 pub struct PersistedState {
     pub rooms: Vec<RoomSummary>,
     pub heartbeats: HashMap<String, NodeHeartbeat>,
+    #[serde(default = "RecentAction::idle")]
+    pub recent_action: RecentAction,
 }
 
 impl PersistedState {
@@ -18,6 +21,7 @@ impl PersistedState {
         Self {
             rooms: default_rooms(),
             heartbeats: HashMap::new(),
+            recent_action: RecentAction::idle(),
         }
     }
 

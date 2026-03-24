@@ -17,6 +17,17 @@ const fallbackStatus: NetworkStatus = {
   routeMode: "relay-preferred",
   edgeState: "running",
   latency: "32 ms",
+  community: "vnetplay-room",
+  supernode: "127.0.0.1:7777",
+  secretMasked: "********",
+  recentAction: {
+    action: "idle",
+    roomId: "未连接",
+    username: "player",
+    detail: "尚未收到服务端侧最近动作",
+    success: true,
+    updatedAt: "--",
+  },
 };
 
 const idleInspect: InspectSnapshot = {

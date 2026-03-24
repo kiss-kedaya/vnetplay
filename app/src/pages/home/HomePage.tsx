@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { InfoCard } from "../../components/cards/InfoCard";
 import { StatusPill } from "../../components/status/StatusPill";
 import { fetchDashboardSummary, type DashboardSummary } from "../../lib/api/dashboard";
+import { fetchNetworkStatus, type NetworkStatus } from "../../lib/api/network";
 import { createRoom, joinRoom } from "../../lib/api/rooms";
 import type { UserProfile } from "../../lib/profile/userProfile";
 import type { ConnectionContext } from "../../lib/runtime/connectionContext";
@@ -15,17 +16,38 @@ type HomePageProps = {
   onUpdateConnectionContext: (context: ConnectionContext) => void;
 };
 
+const fallbackServerStatus: NetworkStatus = {
+  overlayIp: "10.24.8.12",
+  relay: "Tokyo Relay / VPS",
+  routeMode: "relay-preferred",
+  edgeState: "running",
+  latency: "32 ms",
+  community: "vnetplay-room",
+  supernode: "127.0.0.1:7777",
+  secretMasked: "********",
+  recentAction: {
+    action: "idle",
+    roomId: "未连接",
+    username: "player",
+    detail: "尚未收到服务端侧最近动作",
+    success: true,
+    updatedAt: "--",
+  },
+};
+
 function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
 export function HomePage({ profile, settings, connectionContext, onUpdateConnectionContext }: HomePageProps) {
   const [summary, setSummary] = useState<DashboardSummary>(defaultDashboardSummary);
+  const [serverStatus, setServerStatus] = useState<NetworkStatus>(fallbackServerStatus);
   const [feedback, setFeedback] = useState("可以直接快速创建默认房间，或快速加入当前活跃房间。");
 
   async function refreshSummary() {
-    const nextSummary = await fetchDashboardSummary();
+    const [nextSummary, nextStatus] = await Promise.all([fetchDashboardSummary(), fetchNetworkStatus()]);
     setSummary(nextSummary);
+    setServerStatus(nextStatus);
     return nextSummary;
   }
 
@@ -140,20 +162,25 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
       <section className="card page-card quick-actions-card">
         <div className="section-header">
           <h2>最近一次连接上下文</h2>
-          <p>收口展示最近一次快速加入 / 快速创建 / 网络启动的执行结果，方便看当前状态。</p>
+          <p>优先展示服务端侧最近动作，同时保留本地桌面最近执行结果，方便判断当前状态是否一致。</p>
         </div>
         <div className="key-value-grid">
-          <div><strong>最近房间</strong><span>{connectionContext.roomId}</span></div>
-          <div><strong>最近用户</strong><span>{connectionContext.username}</span></div>
-          <div><strong>服务端</strong><span>{connectionContext.serverBaseUrl}</span></div>
-          <div><strong>来源</strong><span>{connectionContext.source}</span></div>
-          <div><strong>时间</strong><span>{connectionContext.updatedAt}</span></div>
-          <div><strong>状态</strong><span>{connectionContext.success ? "success" : "error"}</span></div>
+          <div><strong>服务端动作</strong><span>{serverStatus.recentAction.action}</span></div>
+          <div><strong>服务端房间</strong><span>{serverStatus.recentAction.roomId}</span></div>
+          <div><strong>服务端用户</strong><span>{serverStatus.recentAction.username}</span></div>
+          <div><strong>服务端时间</strong><span>{serverStatus.recentAction.updatedAt}</span></div>
+          <div><strong>本地来源</strong><span>{connectionContext.source}</span></div>
+          <div><strong>本地状态</strong><span>{connectionContext.success ? "success" : "error"}</span></div>
         </div>
         <div className="command-log card-subtle">
-          <div className="command-log-label">最近结果</div>
+          <div className="command-log-label">服务端最近结果</div>
+          <div className="command-log-detail">{serverStatus.recentAction.detail}</div>
+          <div className="command-log-meta">最近 relay: {serverStatus.relay} | edge: {serverStatus.edgeState}</div>
+        </div>
+        <div className="command-log card-subtle">
+          <div className="command-log-label">本地最近结果</div>
           <div className="command-log-detail">{connectionContext.detail}</div>
-          <div className="command-log-meta">PID: {connectionContext.pid ?? "n/a"}</div>
+          <div className="command-log-meta">PID: {connectionContext.pid ?? "n/a"} | 服务端：{connectionContext.serverBaseUrl}</div>
         </div>
       </section>
     </div>

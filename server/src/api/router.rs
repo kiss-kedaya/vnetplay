@@ -6,7 +6,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::models::AppState;
+use crate::models::{AppState, RecentAction};
 use crate::nodes::NodeHeartbeat;
 use crate::rooms::RoomSummary;
 
@@ -37,6 +37,7 @@ struct NetworkStatus {
     community: String,
     supernode: String,
     secret_masked: String,
+    recent_action: RecentAction,
 }
 
 #[derive(Serialize)]
@@ -127,6 +128,13 @@ async fn create_room(
     room.ensure_participant(username);
     rooms.insert(0, room.clone());
     drop(rooms);
+    state.set_recent_action(RecentAction::new(
+        "room-created",
+        &room.room_id,
+        username,
+        &format!("room {} created and joined", room.room_id),
+        true,
+    ));
     state.persist();
 
     Ok(Json(room))
@@ -149,6 +157,13 @@ async fn join_room(
         room.ensure_participant(username);
         let updated = room.clone();
         drop(rooms);
+        state.set_recent_action(RecentAction::new(
+            "room-joined",
+            &updated.room_id,
+            username,
+            &format!("user {} joined room {}", username, updated.room_id),
+            true,
+        ));
         state.persist();
         return Ok(Json(updated));
     }
@@ -158,6 +173,11 @@ async fn join_room(
 
 async fn network_status(State(state): State<AppState>) -> Json<NetworkStatus> {
     let heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
+    let recent_action = state
+        .recent_action
+        .lock()
+        .expect("recent_action mutex poisoned")
+        .clone();
     let overlay_ip = heartbeats
         .values()
         .next()
@@ -174,6 +194,7 @@ async fn network_status(State(state): State<AppState>) -> Json<NetworkStatus> {
         community: state.profile.community.clone(),
         supernode: state.profile.supernode.clone(),
         secret_masked: state.profile.secret_masked.clone(),
+        recent_action,
     })
 }
 
@@ -184,6 +205,13 @@ async fn node_heartbeat(
     let mut heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
     heartbeats.insert(payload.node_id.clone(), payload.clone());
     drop(heartbeats);
+    state.set_recent_action(RecentAction::new(
+        "node-heartbeat",
+        "heartbeat",
+        &payload.node_id,
+        &format!("node {} heartbeat overlay {} {}ms", payload.node_id, payload.overlay_ip, payload.latency_ms),
+        true,
+    ));
     state.persist();
 
     Json(HeartbeatResponse {
