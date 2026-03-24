@@ -213,11 +213,21 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
         <div className="command-log-meta">状态: {commandResult.ok ? "success" : "error"} | PID: {commandResult.pid ?? "n/a"}</div>
       </div>
       <div className="card-subtle settings-block">
-        <div className="settings-label">最近一次连接记录</div>
-        <div className="settings-value">{connectionContext.roomId}</div>
-        <div className="settings-meta">来源：{connectionContext.source} · 时间：{connectionContext.updatedAt}</div>
-        <div className="settings-meta">服务端 recent action：{status.recentAction.action} · {status.recentAction.updatedAt}</div>
-        <div className="settings-meta">服务端 source：{status.recentAction.source} · PID：{status.recentAction.pid ?? "n/a"}</div>
+        <div className="settings-label">服务端 recent action</div>
+        <div className="key-value-grid">
+          <div><strong>动作</strong><span>{status.recentAction.action}</span></div>
+          <div><strong>房间</strong><span>{status.recentAction.roomId}</span></div>
+          <div><strong>用户</strong><span>{status.recentAction.username}</span></div>
+          <div><strong>来源</strong><span>{status.recentAction.source}</span></div>
+          <div><strong>PID</strong><span>{status.recentAction.pid ?? "n/a"}</span></div>
+          <div><strong>时间</strong><span>{status.recentAction.updatedAt}</span></div>
+          <div><strong>状态</strong><span>{status.recentAction.success ? "success" : "error"}</span></div>
+          <div><strong>当前连接记录</strong><span>{connectionContext.roomId}</span></div>
+        </div>
+        <div className="command-log">
+          <div className="command-log-label">服务端 recent action 详情</div>
+          <div className="command-log-detail">{status.recentAction.detail}</div>
+        </div>
       </div>
     </section>
   );
