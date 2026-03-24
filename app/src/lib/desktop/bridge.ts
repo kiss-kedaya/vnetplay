@@ -25,43 +25,34 @@ declare global {
   }
 }
 
-async function invokeOrFallback(command: string, payload?: Record<string, unknown>): Promise<DesktopCommandResult> {
-  const invoke = window.__TAURI__?.core?.invoke;
+function getInvoke() {
+  return window.__TAURI__?.core?.invoke;
+}
 
-  if (invoke) {
-    return invoke<DesktopCommandResult>(command, payload);
-  }
+async function invokeDesktop(command: string, payload?: Record<string, unknown>): Promise<DesktopCommandResult> {
+  const invoke = getInvoke();
 
-  if (command === "inspect_network_command") {
+  if (!invoke) {
     return {
-      ok: true,
-      detail: 'fallback invoke: Command { std: "n2n-edge" "-c" "vnetplay-room" "-l" "127.0.0.1:7777" }',
+      ok: false,
+      detail: `desktop runtime unavailable for ${command}; please run inside the Tauri desktop app`,
       pid: null,
     };
   }
 
-  if (command === "start_network_command") {
-    const networkPayload = payload?.payload as Partial<StartNetworkPayload> | undefined;
-    const roomId = String(networkPayload?.roomId ?? "my-new-room");
-    const username = String(networkPayload?.username ?? "player");
-    const community = String(networkPayload?.community ?? "vnetplay-room");
-    const supernode = String(networkPayload?.supernode ?? "127.0.0.1:7777");
+  try {
+    return await invoke<DesktopCommandResult>(command, payload);
+  } catch (error) {
     return {
-      ok: true,
-      detail: `fallback invoke: prepared to start n2n edge for user ${username} in room ${roomId} via ${community} -> ${supernode}`,
-      pid: 43210,
+      ok: false,
+      detail: error instanceof Error ? error.message : String(error),
+      pid: null,
     };
   }
-
-  return {
-    ok: true,
-    detail: "fallback invoke: stop requested",
-    pid: null,
-  };
 }
 
 export async function readSystemIdentityBridge(): Promise<DesktopIdentityResult> {
-  const invoke = window.__TAURI__?.core?.invoke;
+  const invoke = getInvoke();
 
   if (invoke) {
     return invoke<DesktopIdentityResult>("get_system_identity_command");
@@ -73,11 +64,11 @@ export async function readSystemIdentityBridge(): Promise<DesktopIdentityResult>
 }
 
 export function inspectNetworkBridge(): Promise<DesktopCommandResult> {
-  return invokeOrFallback("inspect_network_command");
+  return invokeDesktop("inspect_network_command");
 }
 
 export function startNetworkBridge(payload: StartNetworkPayload): Promise<DesktopCommandResult> {
-  return invokeOrFallback("start_network_command", {
+  return invokeDesktop("start_network_command", {
     payload: {
       roomId: payload.roomId,
       username: payload.username,
@@ -88,5 +79,5 @@ export function startNetworkBridge(payload: StartNetworkPayload): Promise<Deskto
 }
 
 export function stopNetworkBridge(): Promise<DesktopCommandResult> {
-  return invokeOrFallback("stop_network_command");
+  return invokeDesktop("stop_network_command");
 }

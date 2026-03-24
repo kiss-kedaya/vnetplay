@@ -15,6 +15,10 @@ type HomePageProps = {
   onUpdateConnectionContext: (context: ConnectionContext) => void;
 };
 
+function errorDetail(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function HomePage({ profile, settings, connectionContext, onUpdateConnectionContext }: HomePageProps) {
   const [summary, setSummary] = useState<DashboardSummary>(defaultDashboardSummary);
   const [feedback, setFeedback] = useState("可以直接快速创建默认房间，或快速加入当前活跃房间。");
@@ -50,8 +54,8 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
         source: "manual-start",
         updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
       });
-    } catch {
-      const detail = `快速创建失败，请检查服务端 ${settings.serverBaseUrl}，或确认默认房间名 ${settings.defaultRoomName} 未重复。`;
+    } catch (error) {
+      const detail = `快速创建失败：${errorDetail(error)}`;
       setFeedback(detail);
       onUpdateConnectionContext({
         roomId: settings.defaultRoomName,
@@ -85,8 +89,8 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
         source: "manual-start",
         updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
       });
-    } catch {
-      const detail = `快速加入失败，请确认活跃房间 ${summary.activeRoom} 存在且服务端 ${settings.serverBaseUrl} 可访问。`;
+    } catch (error) {
+      const detail = `快速加入失败：${errorDetail(error)}`;
       setFeedback(detail);
       onUpdateConnectionContext({
         roomId: summary.activeRoom,

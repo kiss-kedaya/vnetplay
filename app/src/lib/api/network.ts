@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "../settings/appSettings";
+import { getJson } from "./http";
 
 export type NetworkStatus = {
   overlayIp: string;
@@ -18,12 +18,7 @@ const fallbackStatus: NetworkStatus = {
 
 export async function fetchNetworkStatus(): Promise<NetworkStatus> {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/network/status`);
-    if (!response.ok) {
-      return fallbackStatus;
-    }
-
-    const payload = (await response.json()) as Record<string, unknown>;
+    const payload = await getJson<Record<string, unknown>>("/api/network/status");
     return {
       overlayIp: String(payload.overlay_ip ?? fallbackStatus.overlayIp),
       relay: String(payload.relay ?? fallbackStatus.relay),

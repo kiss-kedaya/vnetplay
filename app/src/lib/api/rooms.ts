@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from "../settings/appSettings";
+import { getJson, postJson } from "./http";
 
 export type RoomItem = {
   roomId: string;
@@ -48,12 +48,7 @@ function mapRoom(item: Record<string, unknown>): RoomItem {
 
 export async function fetchRooms(): Promise<RoomItem[]> {
   try {
-    const response = await fetch(`${getApiBaseUrl()}/api/rooms`);
-    if (!response.ok) {
-      return fallbackRooms;
-    }
-
-    const payload = (await response.json()) as Array<Record<string, unknown>>;
+    const payload = await getJson<Array<Record<string, unknown>>>("/api/rooms");
     return payload.map(mapRoom);
   } catch {
     return fallbackRooms;
@@ -61,41 +56,21 @@ export async function fetchRooms(): Promise<RoomItem[]> {
 }
 
 export async function createRoom(payload: RoomPayload): Promise<RoomItem> {
-  const response = await fetch(`${getApiBaseUrl()}/api/rooms/create`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      room_id: payload.roomId,
-      game: payload.game ?? "Minecraft",
-      mode: payload.mode ?? "LAN Overlay",
-      username: payload.username,
-    }),
+  const room = await postJson<Record<string, unknown>>("/api/rooms/create", {
+    room_id: payload.roomId,
+    game: payload.game ?? "Minecraft",
+    mode: payload.mode ?? "LAN Overlay",
+    username: payload.username,
   });
 
-  if (!response.ok) {
-    throw new Error("create room failed");
-  }
-
-  return mapRoom((await response.json()) as Record<string, unknown>);
+  return mapRoom(room);
 }
 
 export async function joinRoom(payload: RoomPayload): Promise<RoomItem> {
-  const response = await fetch(`${getApiBaseUrl()}/api/rooms/join`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      room_id: payload.roomId,
-      username: payload.username,
-    }),
+  const room = await postJson<Record<string, unknown>>("/api/rooms/join", {
+    room_id: payload.roomId,
+    username: payload.username,
   });
 
-  if (!response.ok) {
-    throw new Error("join room failed");
-  }
-
-  return mapRoom((await response.json()) as Record<string, unknown>);
+  return mapRoom(room);
 }

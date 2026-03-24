@@ -8,6 +8,10 @@ type RoomsPageProps = {
   settings: AppSettings;
 };
 
+function errorDetail(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function RoomsPage({ profile, settings }: RoomsPageProps) {
   const [rooms, setRooms] = useState<RoomItem[]>([]);
   const [createRoomId, setCreateRoomId] = useState(settings.defaultRoomName);
@@ -49,8 +53,8 @@ export function RoomsPage({ profile, settings }: RoomsPageProps) {
       });
       await refreshRooms(room.roomId);
       setFeedback(`已创建房间 ${room.roomId}，当前玩家 ${profile.username} 已自动加入。`);
-    } catch {
-      setFeedback(`创建房间失败，请检查服务端地址 ${settings.serverBaseUrl} 是否可访问，或确认房间名未重复。`);
+    } catch (error) {
+      setFeedback(`创建房间失败：${errorDetail(error)}`);
     }
   }
 
@@ -68,8 +72,8 @@ export function RoomsPage({ profile, settings }: RoomsPageProps) {
       });
       await refreshRooms(room.roomId);
       setFeedback(`已加入房间 ${room.roomId}，当前成员 ${room.participants.join(" / ")}。`);
-    } catch {
-      setFeedback(`加入房间失败，请检查服务端地址 ${settings.serverBaseUrl} 或确认目标房间仍存在。`);
+    } catch (error) {
+      setFeedback(`加入房间失败：${errorDetail(error)}`);
     }
   }
 
