@@ -12,11 +12,16 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    name: desktop-rust-core (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
     defaults:
       run:
         working-directory: desktop/src-tauri
     steps:
       - uses: actions/checkout@v4
       - name: Build desktop rust core
-        run: cargo build
+        run: cargo build --locked

@@ -161,4 +161,5 @@
 - [x] Desktop command layer now has callable start and inspect boundaries instead of a single placeholder summary.
 - [x] Desktop process service now supports start/stop process management boundaries with PID tracking.
 - [x] Frontend network page now has a desktop bridge abstraction and control buttons for inspect/start/stop flows.
-- [ ] Next pass: connect the bridge to real Tauri invoke commands instead of fallback browser shims.
+- [x] GitHub Actions has been upgraded to multi-platform frontend/server/desktop matrix workflows.
+- [ ] Next pass: connect the bridge to real Tauri invoke commands instead of fallback browser shims, then chase CI to fully green.
