@@ -209,4 +209,5 @@
 - [x] The primary shell is now further converging toward a single room workspace: top-level navigation no longer promotes a separate rooms page, and the home workspace carries room creation, room joining, selected room details, and machine-label context in one place.
 - [x] Room selection in the primary workspace no longer depends on a native select: the home workspace now uses a small room card list, and `RoomsPage` has been reduced to a compatibility wrapper so room flow does not fork into two separate implementations.
 - [x] The launcher workspace is now compressed into a tighter single-flow layout: server -> create room -> choose room -> current status, and the former split status blocks are merged into one compact room-state panel.
+- [x] Repository README now reflects the real product state: room-first launcher flow, machine-id identity, current local startup/build commands, and the split frontend/server/desktop CI quality gates.
 - [ ] Next pass: continue turning the shell into an end-to-end usable LAN client.
