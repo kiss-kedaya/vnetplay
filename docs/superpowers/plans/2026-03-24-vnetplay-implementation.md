@@ -204,4 +204,5 @@
 - [x] Desktop inspect now verifies whether the recorded PID is actually alive via Windows tasklist and marks stale PID state explicitly.
 - [x] Desktop inspect now auto-cleans stale local PID state instead of only warning, so the UI no longer keeps fake running state after process exit.
 - [x] Room flow now blocks create/join until a server URL is provided, shows room population plus password requirement, and keeps the selected room status visible after joining.
+- [x] Home page has been reshaped into a launcher-style workflow with two primary actions, current room status, and helper hints, moving closer to a LAN toolbox instead of a dashboard.
 - [ ] Next pass: continue turning the shell into an end-to-end usable LAN client.

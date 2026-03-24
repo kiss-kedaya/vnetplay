@@ -1,13 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { InfoCard } from "../../components/cards/InfoCard";
-import { StatusPill } from "../../components/status/StatusPill";
-import { fetchDashboardSummary, type DashboardSummary } from "../../lib/api/dashboard";
-import { fetchNetworkStatus, type NetworkStatus } from "../../lib/api/network";
-import { createRoom, joinRoom } from "../../lib/api/rooms";
+import { createRoom, fetchRooms, joinRoom, type RoomItem } from "../../lib/api/rooms";
+import { saveAppSettings } from "../../lib/settings/appSettings";
 import type { UserProfile } from "../../lib/profile/userProfile";
 import type { ConnectionContext } from "../../lib/runtime/connectionContext";
 import type { AppSettings } from "../../lib/settings/appSettings";
-import { defaultDashboardSummary } from "../../features/network/networkSummary";
 
 type HomePageProps = {
   profile: UserProfile;
@@ -16,211 +12,222 @@ type HomePageProps = {
   onUpdateConnectionContext: (context: ConnectionContext) => void;
 };
 
-const fallbackServerStatus: NetworkStatus = {
-  overlayIp: "10.24.8.12",
-  relay: "Tokyo Relay / VPS",
-  routeMode: "relay-preferred",
-  edgeState: "running",
-  latency: "32 ms",
-  community: "vnetplay-room",
-  supernode: "127.0.0.1:7777",
-  secretMasked: "********",
-  recentAction: {
-    action: "idle",
-    roomId: "未连接",
-    username: "player",
-    detail: "尚未收到服务端侧最近动作",
-    success: true,
-    updatedAt: "--",
-    source: "server",
-    pid: null,
-  },
-};
-
 function errorDetail(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
 export function HomePage({ profile, settings, connectionContext, onUpdateConnectionContext }: HomePageProps) {
-  const [summary, setSummary] = useState<DashboardSummary>(defaultDashboardSummary);
-  const [serverStatus, setServerStatus] = useState<NetworkStatus>(fallbackServerStatus);
-  const [feedback, setFeedback] = useState("可以直接快速创建默认房间，或快速加入当前活跃房间。");
-
-  const mismatchWarning = useMemo(() => {
-    const serverAction = serverStatus.recentAction;
-    const isComparableServerAction = serverAction.action.startsWith("desktop-");
-
-    if (!isComparableServerAction) {
-      return null;
-    }
-
-    const roomMismatch = connectionContext.roomId !== serverAction.roomId;
-    const userMismatch = connectionContext.username !== serverAction.username;
-    const statusMismatch = connectionContext.success !== serverAction.success;
-    const pidMismatch = (connectionContext.pid ?? null) !== (serverAction.pid ?? null);
-
-    if (!roomMismatch && !userMismatch && !statusMismatch && !pidMismatch) {
-      return null;
-    }
-
-    const reasons = [
-      roomMismatch ? `房间不一致（本地 ${connectionContext.roomId} / 服务端 ${serverAction.roomId}）` : null,
-      userMismatch ? `用户不一致（本地 ${connectionContext.username} / 服务端 ${serverAction.username}）` : null,
-      statusMismatch ? `执行状态不一致（本地 ${connectionContext.success ? "success" : "error"} / 服务端 ${serverAction.success ? "success" : "error"}）` : null,
-      pidMismatch ? `PID 不一致（本地 ${connectionContext.pid ?? "n/a"} / 服务端 ${serverAction.pid ?? "n/a"}）` : null,
-    ].filter(Boolean);
-
-    return reasons.join("；");
-  }, [connectionContext, serverStatus.recentAction]);
-
-  async function refreshSummary() {
-    const [nextSummary, nextStatus] = await Promise.all([fetchDashboardSummary(), fetchNetworkStatus()]);
-    setSummary(nextSummary);
-    setServerStatus(nextStatus);
-    return nextSummary;
-  }
+  const [serverBaseUrl, setServerBaseUrl] = useState(settings.serverBaseUrl);
+  const [roomId, setRoomId] = useState(settings.defaultRoomName);
+  const [roomPassword, setRoomPassword] = useState("");
+  const [rooms, setRooms] = useState<RoomItem[]>([]);
+  const [selectedRoomId, setSelectedRoomId] = useState("");
+  const [joinPassword, setJoinPassword] = useState("");
+  const [feedback, setFeedback] = useState("先填写服务器地址，再创建或加入房间。");
+  const [loadingRooms, setLoadingRooms] = useState(false);
 
   useEffect(() => {
-    refreshSummary();
-  }, [settings.serverBaseUrl]);
+    setServerBaseUrl(settings.serverBaseUrl);
+    setRoomId(settings.defaultRoomName);
+  }, [settings.serverBaseUrl, settings.defaultRoomName]);
 
-  async function handleQuickCreate() {
+  const selectedRoom = useMemo(() => rooms.find((item) => item.roomId === selectedRoomId) ?? null, [rooms, selectedRoomId]);
+
+  async function handleLoadRooms() {
+    const trimmedBaseUrl = serverBaseUrl.trim();
+    if (!trimmedBaseUrl) {
+      setFeedback("请先填写服务器地址。");
+      return;
+    }
+
+    setLoadingRooms(true);
     try {
+      saveAppSettings({ serverBaseUrl: trimmedBaseUrl });
+      const items = await fetchRooms();
+      setRooms(items);
+      setSelectedRoomId((current) => current || items[0]?.roomId || "");
+      setFeedback(items.length > 0 ? "已读取服务器房间。" : "当前服务器没有房间，可以直接创建。");
+    } catch (error) {
+      setRooms([]);
+      setSelectedRoomId("");
+      setFeedback(`读取服务器房间失败：${errorDetail(error)}`);
+    } finally {
+      setLoadingRooms(false);
+    }
+  }
+
+  async function handleCreateRoom() {
+    const trimmedBaseUrl = serverBaseUrl.trim();
+    if (!trimmedBaseUrl) {
+      setFeedback("请先填写服务器地址，再创建房间。");
+      return;
+    }
+
+    const trimmedRoomId = roomId.trim();
+    if (!trimmedRoomId) {
+      setFeedback("请输入房间名。");
+      return;
+    }
+
+    try {
+      saveAppSettings({ serverBaseUrl: trimmedBaseUrl, defaultRoomName: trimmedRoomId });
       const room = await createRoom({
-        roomId: settings.defaultRoomName,
+        roomId: trimmedRoomId,
         username: profile.username,
+        password: roomPassword,
         game: "Minecraft",
         mode: "LAN Overlay",
       });
-      await refreshSummary();
-      const detail = `已快速创建 ${room.roomId}，当前玩家 ${profile.username} 已进入房间。`;
-      setFeedback(detail);
+      setRoomPassword("");
+      setFeedback(`已创建并进入 ${room.roomId}。现在可以让朋友输入同样的服务器和房间名加入。`);
       onUpdateConnectionContext({
         roomId: room.roomId,
         username: profile.username,
-        serverBaseUrl: settings.serverBaseUrl,
+        serverBaseUrl: trimmedBaseUrl,
         success: true,
-        detail,
+        detail: `已创建并进入房间 ${room.roomId}`,
         pid: null,
         source: "manual-start",
         updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
         runtimeDurationLabel: "idle",
       });
+      await handleLoadRooms();
+      setSelectedRoomId(room.roomId);
     } catch (error) {
-      const detail = `快速创建失败：${errorDetail(error)}`;
-      setFeedback(detail);
-      onUpdateConnectionContext({
-        roomId: settings.defaultRoomName,
-        username: profile.username,
-        serverBaseUrl: settings.serverBaseUrl,
-        success: false,
-        detail,
-        pid: null,
-        source: "manual-start",
-        updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
-        runtimeDurationLabel: "idle",
-      });
+      setFeedback(`创建房间失败：${errorDetail(error)}`);
     }
   }
 
-  async function handleQuickJoin() {
+  async function handleJoinRoom() {
+    const trimmedBaseUrl = serverBaseUrl.trim();
+    if (!trimmedBaseUrl) {
+      setFeedback("请先填写服务器地址，再加入房间。");
+      return;
+    }
+
+    const targetRoomId = selectedRoomId.trim() || roomId.trim();
+    if (!targetRoomId) {
+      setFeedback("请先选择房间或输入房间名。");
+      return;
+    }
+
     try {
+      saveAppSettings({ serverBaseUrl: trimmedBaseUrl, defaultRoomName: targetRoomId });
       const room = await joinRoom({
-        roomId: summary.activeRoom,
+        roomId: targetRoomId,
         username: profile.username,
+        password: joinPassword,
       });
-      await refreshSummary();
-      const detail = `已快速加入 ${room.roomId}，当前成员 ${room.participants.join(" / ")}。`;
-      setFeedback(detail);
+      setFeedback(`已进入 ${room.roomId}，当前人数 ${room.members}。现在可以在游戏里搜索局域网房间。`);
       onUpdateConnectionContext({
         roomId: room.roomId,
         username: profile.username,
-        serverBaseUrl: settings.serverBaseUrl,
+        serverBaseUrl: trimmedBaseUrl,
         success: true,
-        detail,
+        detail: `已进入房间 ${room.roomId}`,
         pid: null,
         source: "manual-start",
         updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
         runtimeDurationLabel: "idle",
       });
+      await handleLoadRooms();
+      setSelectedRoomId(room.roomId);
     } catch (error) {
-      const detail = `快速加入失败：${errorDetail(error)}`;
-      setFeedback(detail);
-      onUpdateConnectionContext({
-        roomId: summary.activeRoom,
-        username: profile.username,
-        serverBaseUrl: settings.serverBaseUrl,
-        success: false,
-        detail,
-        pid: null,
-        source: "manual-start",
-        updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
-        runtimeDurationLabel: "idle",
-      });
+      setFeedback(`进入房间失败：${errorDetail(error)}`);
     }
   }
 
   return (
-    <div className="page-grid home-grid">
-      <InfoCard title="当前玩家" value={profile.username} detail={`启动时默认读取系统用户名 ${profile.systemUsername}，可在设置页随时修改。`} footer={<StatusPill tone="online" text={profile.source === "system" ? "系统默认" : "已自定义"} />} />
-      <InfoCard title="虚拟 IP" value={summary.overlayIp} detail="进入房间后自动分配，适合 LAN 游戏直连。" footer={<StatusPill tone="online" text="在线" />} />
-      <InfoCard title="中继路径" value={summary.relay} detail={`当前房间 ${summary.activeRoom}，已连接 ${summary.roomMembers} 个成员。`} footer={<StatusPill tone="idle" text="智能选路" />} />
-      <InfoCard title="运行态 Telemetry" value={serverStatus.recentAction.action} detail={`最近时间 ${serverStatus.recentAction.updatedAt} · Source ${serverStatus.recentAction.source} · PID ${serverStatus.recentAction.pid ?? "n/a"} · 本地运行 ${connectionContext.runtimeDurationLabel}`} footer={<StatusPill tone={serverStatus.recentAction.success ? "online" : "warning"} text={serverStatus.recentAction.success ? "已同步" : "待排查"} />} />
-
-      <section className="card page-card quick-actions-card">
-        <div className="section-header">
-          <h2>快速操作</h2>
-          <p>直接使用当前用户名、服务端地址和默认房间名，减少切页操作。</p>
+    <div className="launcher-home">
+      <section className="card launcher-hero">
+        <div>
+          <div className="eyebrow">好朋友联机工具</div>
+          <h2>创建房间或加入房间</h2>
+          <p>只保留联机必需操作。先填服务器地址，再创建房间或选择已有房间加入。</p>
         </div>
-        <div className="rooms-actions-grid">
-          <div className="card-subtle settings-block">
-            <div className="settings-label">快速创建默认房间</div>
-            <div className="settings-value">{settings.defaultRoomName}</div>
-            <div className="settings-meta">服务端：{settings.serverBaseUrl}</div>
-            <button className="primary-button" type="button" onClick={handleQuickCreate}>创建并加入</button>
-          </div>
-          <div className="card-subtle settings-block">
-            <div className="settings-label">快速加入活跃房间</div>
-            <div className="settings-value">{summary.activeRoom}</div>
-            <div className="settings-meta">当前玩家：{profile.username}</div>
-            <button className="ghost-button" type="button" onClick={handleQuickJoin}>加入当前房间</button>
-          </div>
-        </div>
-        <div className="command-log card-subtle">
-          <div className="command-log-label">快速操作结果</div>
-          <div className="command-log-detail">{feedback}</div>
+        <div className="launcher-hero-meta">
+          <span>当前玩家：{profile.username}</span>
+          <span>默认房间：{settings.defaultRoomName}</span>
         </div>
       </section>
 
-      <section className="card page-card quick-actions-card">
-        <div className="section-header">
-          <h2>最近一次连接上下文</h2>
-          <p>优先展示服务端侧最近动作，同时保留本地桌面最近执行结果，方便判断当前状态是否一致。</p>
-        </div>
-        {mismatchWarning ? (
-          <div className="mismatch-banner">
-            <div className="mismatch-banner-title">检测到本地与服务端状态不一致</div>
-            <div className="mismatch-banner-detail">{mismatchWarning}</div>
+      <section className="launcher-main-grid">
+        <div className="card launcher-main-card">
+          <div className="section-header">
+            <h2>新建房间</h2>
+            <p>自己当房主，设置一个房间名后直接进入。</p>
           </div>
-        ) : null}
-        <div className="key-value-grid">
-          <div><strong>服务端动作</strong><span>{serverStatus.recentAction.action}</span></div>
-          <div><strong>服务端房间</strong><span>{serverStatus.recentAction.roomId}</span></div>
-          <div><strong>服务端用户</strong><span>{serverStatus.recentAction.username}</span></div>
-          <div><strong>服务端时间</strong><span>{serverStatus.recentAction.updatedAt}</span></div>
-          <div><strong>服务端来源</strong><span>{serverStatus.recentAction.source}</span></div>
-          <div><strong>本地状态</strong><span>{connectionContext.success ? "success" : "error"}</span></div>
-          <div><strong>本地运行时长</strong><span>{connectionContext.runtimeDurationLabel}</span></div>
+          <input className="settings-input" value={serverBaseUrl} onChange={(event) => setServerBaseUrl(event.target.value)} placeholder="先填写服务器地址，例如 http://127.0.0.1:9080" />
+          <input className="settings-input" value={roomId} onChange={(event) => setRoomId(event.target.value)} placeholder="输入房间名" />
+          <input className="settings-input" value={roomPassword} onChange={(event) => setRoomPassword(event.target.value)} placeholder="可选：设置房间密码" />
+          <button className="launcher-action primary-button" type="button" onClick={handleCreateRoom}>新建房间</button>
         </div>
-        <div className="command-log card-subtle">
-          <div className="command-log-label">服务端最近结果</div>
-          <div className="command-log-detail">{serverStatus.recentAction.detail}</div>
-          <div className="command-log-meta">PID: {serverStatus.recentAction.pid ?? "n/a"} | 最近 relay: {serverStatus.relay} | edge: {serverStatus.edgeState}</div>
+
+        <div className="card launcher-main-card">
+          <div className="section-header">
+            <h2>加入房间</h2>
+            <p>先读取服务器房间，再选择房间输入密码加入。</p>
+          </div>
+          <div className="launcher-inline-actions">
+            <button className="ghost-button" type="button" onClick={handleLoadRooms}>{loadingRooms ? "读取中..." : "查看服务器房间"}</button>
+          </div>
+          <select className="settings-input" value={selectedRoomId} onChange={(event) => setSelectedRoomId(event.target.value)}>
+            <option value="">请选择房间</option>
+            {rooms.map((room) => (
+              <option key={room.roomId} value={room.roomId}>
+                {room.roomId} · {room.members}人 · {room.requiresPassword ? "需要密码" : "免密码"}
+              </option>
+            ))}
+          </select>
+          <input className="settings-input" value={joinPassword} onChange={(event) => setJoinPassword(event.target.value)} placeholder="如房间需要密码，请输入" />
+          <button className="launcher-action ghost-button" type="button" onClick={handleJoinRoom}>加入房间</button>
         </div>
-        <div className="command-log card-subtle">
-          <div className="command-log-label">本地最近结果</div>
-          <div className="command-log-detail">{connectionContext.detail}</div>
-          <div className="command-log-meta">PID: {connectionContext.pid ?? "n/a"} | 服务端：{connectionContext.serverBaseUrl} | 运行时长: {connectionContext.runtimeDurationLabel}</div>
+      </section>
+
+      <section className="launcher-status-grid">
+        <div className="card launcher-status-card">
+          <div className="section-header">
+            <h2>当前房间状态</h2>
+            <p>进入房间后，这里会持续显示当前联机状态。</p>
+          </div>
+          <div className="key-value-grid">
+            <div><strong>当前房间</strong><span>{connectionContext.roomId}</span></div>
+            <div><strong>当前玩家</strong><span>{profile.username}</span></div>
+            <div><strong>服务器地址</strong><span>{serverBaseUrl || "未填写"}</span></div>
+            <div><strong>连接状态</strong><span>{connectionContext.success ? "已准备" : "未连接"}</span></div>
+          </div>
+          <div className="command-log card-subtle">
+            <div className="command-log-label">提示</div>
+            <div className="command-log-detail">{feedback}</div>
+          </div>
+        </div>
+
+        <div className="card launcher-status-card">
+          <div className="section-header">
+            <h2>已选房间信息</h2>
+            <p>读取服务器后，可以先看人数和是否需要密码。</p>
+          </div>
+          {selectedRoom ? (
+            <div className="key-value-grid">
+              <div><strong>房间名</strong><span>{selectedRoom.roomId}</span></div>
+              <div><strong>人数</strong><span>{selectedRoom.members}</span></div>
+              <div><strong>密码</strong><span>{selectedRoom.requiresPassword ? "需要密码" : "无需密码"}</span></div>
+              <div><strong>成员</strong><span>{selectedRoom.participants.join(" / ") || "--"}</span></div>
+            </div>
+          ) : (
+            <div className="launcher-empty">暂无已选房间，先点“查看服务器房间”。</div>
+          )}
+        </div>
+      </section>
+
+      <section className="launcher-helper-grid">
+        <div className="card-subtle launcher-helper-card">
+          <div className="settings-label">下一步</div>
+          <div className="settings-meta">进入房间后，在游戏里搜索局域网房间，或使用虚拟 IP 加入。</div>
+        </div>
+        <div className="card-subtle launcher-helper-card">
+          <div className="settings-label">辅助入口</div>
+          <div className="settings-meta">需要高级网络信息时，再去“网络”或“排障”；平时只用当前首页即可。</div>
         </div>
       </section>
     </div>
