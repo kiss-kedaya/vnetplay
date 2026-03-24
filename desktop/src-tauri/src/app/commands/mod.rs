@@ -44,10 +44,6 @@ fn cleanup_stale_pid(state: &mut DesktopState) {
     }
 }
 
-pub fn command_summary() -> &'static str {
-    "desktop command bridge ready"
-}
-
 pub fn get_system_identity() -> SystemIdentityResponse {
     SystemIdentityResponse {
         system_username: current_system_username(),

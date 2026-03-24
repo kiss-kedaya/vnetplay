@@ -6,16 +6,8 @@ mod app {
     }
     pub mod state;
 }
-mod game {
-    pub mod detector;
-}
 mod ipc {
     pub mod models;
-}
-mod network {
-    pub mod edge_manager;
-    pub mod node_status;
-    pub mod route_probe;
 }
 
 use std::sync::Mutex;
