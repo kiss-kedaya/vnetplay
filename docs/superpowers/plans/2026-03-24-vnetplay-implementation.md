@@ -159,4 +159,5 @@
 - [x] Server room list, network status, dashboard summary, and heartbeat ingestion now share one in-memory state source.
 - [x] Server state now supports local JSON persistence for rooms and heartbeat snapshots.
 - [x] Desktop command layer now has callable start and inspect boundaries instead of a single placeholder summary.
-- [ ] Next pass: execute real n2n binaries, connect desktop commands to Tauri invoke flow, and let the frontend drive those commands.
+- [x] Desktop process service now supports start/stop process management boundaries with PID tracking.
+- [ ] Next pass: connect desktop commands to Tauri invoke flow and let the frontend drive those commands.

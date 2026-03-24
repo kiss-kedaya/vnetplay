@@ -14,7 +14,7 @@ mod network {
     pub mod route_probe;
 }
 
-use app::commands::{command_summary, inspect_network, start_network};
+use app::commands::{command_summary, inspect_network, stop_network};
 use app::state::DesktopState;
 use game::detector::supported_games;
 use network::edge_manager::EdgeManager;
@@ -28,7 +28,8 @@ fn main() {
     println!("games: {:?}", supported_games());
     println!("command bridge: {}", command_summary());
     println!("edge preview: {}", inspect_network());
-    println!("start network: {}", start_network(&mut state));
+    println!("stop network: {}", stop_network(&mut state));
     println!("active room: {}", state.active_room);
     println!("last command: {}", state.last_command);
+    println!("last pid: {:?}", state.last_pid);
 }
