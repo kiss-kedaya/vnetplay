@@ -7,9 +7,8 @@ type TopbarProps = {
 
 export function Topbar({ title, username, profileSource }: TopbarProps) {
   return (
-    <header className="topbar card shell-topbar-slim">
-      <div className="shell-topbar-copy">
-        <div className="eyebrow">联机工具</div>
+    <header className="topbar card shell-topbar-slim shell-topbar-ultra-slim">
+      <div className="shell-topbar-copy shell-topbar-copy-slim">
         <h1>{title}</h1>
       </div>
       <div className="topbar-actions">

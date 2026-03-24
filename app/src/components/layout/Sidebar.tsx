@@ -31,8 +31,8 @@ export function Sidebar({ items, activeKey, onSelect }: SidebarProps) {
         </button>
       </nav>
 
-      <div className="nav-group-label">辅助</div>
-      <nav className="nav-list shell-nav-slim nav-list-secondary">
+      <div className="nav-group-label nav-group-label-muted">辅助工具</div>
+      <nav className="nav-list shell-nav-slim nav-list-secondary nav-list-secondary-muted">
         {secondaryItems.map((item) => (
           <button
             key={item.key}

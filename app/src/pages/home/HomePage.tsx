@@ -149,14 +149,14 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
 
   return (
     <div className="launcher-home compact-room-workspace">
-      <section className="card launcher-hero compact-hero compact-hero-slim">
-        <div className="compact-hero-copy">
-          <div className="eyebrow">联机</div>
-          <h2>服务器和房间都在这一页</h2>
+      <section className="card launcher-hero compact-hero compact-hero-slim compact-hero-ultra-slim">
+        <div className="compact-hero-copy compact-hero-copy-ultra-slim">
+          <h2>这一页就够了</h2>
+          <div className="path-hint compact-inline-hint">同服创建、选房、加入，都从这里开始。</div>
         </div>
-        <div className="launcher-hero-meta compact-hero-meta">
-          <span>玩家：{profile.username}</span>
-          <span>设备：{profile.machineLabel}</span>
+        <div className="launcher-hero-meta compact-hero-meta compact-hero-meta-slim">
+          <span>{profile.username}</span>
+          <span>{profile.machineLabel}</span>
         </div>
       </section>
 
