@@ -15,6 +15,10 @@ pub struct NetworkProfile {
     pub supernode: String,
 }
 
+fn default_source() -> String {
+    "server".to_string()
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct RecentAction {
     pub action: String,
@@ -23,6 +27,10 @@ pub struct RecentAction {
     pub detail: String,
     pub success: bool,
     pub updated_at: String,
+    #[serde(default = "default_source")]
+    pub source: String,
+    #[serde(default)]
+    pub pid: Option<u32>,
 }
 
 impl RecentAction {
@@ -34,7 +42,19 @@ impl RecentAction {
             detail: detail.to_string(),
             success,
             updated_at: Utc::now().to_rfc3339(),
+            source: default_source(),
+            pid: None,
         }
+    }
+
+    pub fn with_source(mut self, source: &str) -> Self {
+        self.source = source.to_string();
+        self
+    }
+
+    pub fn with_pid(mut self, pid: Option<u32>) -> Self {
+        self.pid = pid;
+        self
     }
 
     pub fn idle() -> Self {

@@ -32,6 +32,8 @@ const fallbackServerStatus: NetworkStatus = {
     detail: "尚未收到服务端侧最近动作",
     success: true,
     updatedAt: "--",
+    source: "server",
+    pid: null,
   },
 };
 
@@ -200,13 +202,13 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
           <div><strong>服务端房间</strong><span>{serverStatus.recentAction.roomId}</span></div>
           <div><strong>服务端用户</strong><span>{serverStatus.recentAction.username}</span></div>
           <div><strong>服务端时间</strong><span>{serverStatus.recentAction.updatedAt}</span></div>
-          <div><strong>本地来源</strong><span>{connectionContext.source}</span></div>
+          <div><strong>服务端来源</strong><span>{serverStatus.recentAction.source}</span></div>
           <div><strong>本地状态</strong><span>{connectionContext.success ? "success" : "error"}</span></div>
         </div>
         <div className="command-log card-subtle">
           <div className="command-log-label">服务端最近结果</div>
           <div className="command-log-detail">{serverStatus.recentAction.detail}</div>
-          <div className="command-log-meta">最近 relay: {serverStatus.relay} | edge: {serverStatus.edgeState}</div>
+          <div className="command-log-meta">PID: {serverStatus.recentAction.pid ?? "n/a"} | 最近 relay: {serverStatus.relay} | edge: {serverStatus.edgeState}</div>
         </div>
         <div className="command-log card-subtle">
           <div className="command-log-label">本地最近结果</div>

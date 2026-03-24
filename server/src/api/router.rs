@@ -67,6 +67,8 @@ struct SyncRecentActionRequest {
     username: String,
     detail: String,
     success: bool,
+    source: Option<String>,
+    pid: Option<u32>,
 }
 
 async fn health() -> Json<HealthResponse> {
@@ -137,13 +139,17 @@ async fn create_room(
     room.ensure_participant(username);
     rooms.insert(0, room.clone());
     drop(rooms);
-    state.set_recent_action(RecentAction::new(
-        "room-created",
-        &room.room_id,
-        username,
-        &format!("room {} created and joined", room.room_id),
-        true,
-    ));
+    state.set_recent_action(
+        RecentAction::new(
+            "room-created",
+            &room.room_id,
+            username,
+            &format!("room {} created and joined", room.room_id),
+            true,
+        )
+        .with_source("server-room")
+        .with_pid(None),
+    );
     state.persist();
 
     Ok(Json(room))
@@ -166,13 +172,17 @@ async fn join_room(
         room.ensure_participant(username);
         let updated = room.clone();
         drop(rooms);
-        state.set_recent_action(RecentAction::new(
-            "room-joined",
-            &updated.room_id,
-            username,
-            &format!("user {} joined room {}", username, updated.room_id),
-            true,
-        ));
+        state.set_recent_action(
+            RecentAction::new(
+                "room-joined",
+                &updated.room_id,
+                username,
+                &format!("user {} joined room {}", username, updated.room_id),
+                true,
+            )
+            .with_source("server-room")
+            .with_pid(None),
+        );
         state.persist();
         return Ok(Json(updated));
     }
@@ -220,7 +230,9 @@ async fn sync_recent_action(
         return Err((StatusCode::BAD_REQUEST, "action, room_id, username, and detail are required".to_string()));
     }
 
-    let recent_action = RecentAction::new(action, room_id, username, detail, payload.success);
+    let recent_action = RecentAction::new(action, room_id, username, detail, payload.success)
+        .with_source(payload.source.as_deref().unwrap_or("desktop-bridge"))
+        .with_pid(payload.pid);
     state.set_recent_action(recent_action.clone());
     state.persist();
 
@@ -234,13 +246,17 @@ async fn node_heartbeat(
     let mut heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
     heartbeats.insert(payload.node_id.clone(), payload.clone());
     drop(heartbeats);
-    state.set_recent_action(RecentAction::new(
-        "node-heartbeat",
-        "heartbeat",
-        &payload.node_id,
-        &format!("node {} heartbeat overlay {} {}ms", payload.node_id, payload.overlay_ip, payload.latency_ms),
-        true,
-    ));
+    state.set_recent_action(
+        RecentAction::new(
+            "node-heartbeat",
+            "heartbeat",
+            &payload.node_id,
+            &format!("node {} heartbeat overlay {} {}ms", payload.node_id, payload.overlay_ip, payload.latency_ms),
+            true,
+        )
+        .with_source("server-heartbeat")
+        .with_pid(None),
+    );
     state.persist();
 
     Json(HeartbeatResponse {

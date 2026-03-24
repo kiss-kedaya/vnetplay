@@ -27,6 +27,8 @@ const fallbackStatus: NetworkStatus = {
     detail: "尚未收到服务端侧最近动作",
     success: true,
     updatedAt: "--",
+    source: "server",
+    pid: null,
   },
 };
 

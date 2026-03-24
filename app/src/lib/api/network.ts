@@ -7,6 +7,8 @@ export type RecentAction = {
   detail: string;
   success: boolean;
   updatedAt: string;
+  source: string;
+  pid: number | null;
 };
 
 export type NetworkStatus = {
@@ -27,6 +29,8 @@ export type SyncRecentActionPayload = {
   username: string;
   detail: string;
   success: boolean;
+  source: string;
+  pid: number | null;
 };
 
 const fallbackStatus: NetworkStatus = {
@@ -45,6 +49,8 @@ const fallbackStatus: NetworkStatus = {
     detail: "尚未收到服务端侧最近动作",
     success: true,
     updatedAt: "--",
+    source: "server",
+    pid: null,
   },
 };
 
@@ -58,6 +64,8 @@ function mapRecentAction(payload: Record<string, unknown> | undefined): RecentAc
     detail: String(recent.detail ?? fallbackStatus.recentAction.detail),
     success: Boolean(recent.success ?? fallbackStatus.recentAction.success),
     updatedAt: String(recent.updated_at ?? fallbackStatus.recentAction.updatedAt),
+    source: String(recent.source ?? fallbackStatus.recentAction.source),
+    pid: recent.pid == null ? fallbackStatus.recentAction.pid : Number(recent.pid),
   };
 }
 
@@ -88,6 +96,8 @@ export async function syncRecentAction(payload: SyncRecentActionPayload): Promis
     username: payload.username,
     detail: payload.detail,
     success: payload.success,
+    source: payload.source,
+    pid: payload.pid,
   });
 
   return mapRecentAction(response);

@@ -27,6 +27,8 @@ const fallbackStatus: NetworkStatus = {
     detail: "尚未收到服务端侧最近动作",
     success: true,
     updatedAt: "--",
+    source: "server",
+    pid: null,
   },
 };
 
@@ -67,7 +69,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     return nextStatus;
   }
 
-  async function syncActionToServer(action: string, result: DesktopCommandResult) {
+  async function syncActionToServer(action: string, result: DesktopCommandResult, source: string) {
     try {
       const recentAction = await syncRecentAction({
         action,
@@ -75,6 +77,8 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
         username: profile.username,
         detail: result.detail,
         success: result.ok,
+        source,
+        pid: result.pid ?? null,
       });
 
       setStatus((current) => ({
@@ -104,7 +108,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       detail,
     };
     setCommandResult(finalResult);
-    await syncActionToServer(trigger === "auto" ? "desktop-auto-start" : "desktop-start", finalResult);
+    await syncActionToServer(trigger === "auto" ? "desktop-auto-start" : "desktop-start", finalResult, trigger === "auto" ? "desktop-auto" : "desktop-manual");
     onUpdateConnectionContext({
       roomId: settings.defaultRoomName,
       username: profile.username,
@@ -120,7 +124,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
   async function handleStopNetwork() {
     const result = await stopNetworkBridge();
     setCommandResult(result);
-    await syncActionToServer("desktop-stop", result);
+    await syncActionToServer("desktop-stop", result, "desktop-manual");
     onUpdateConnectionContext({
       roomId: settings.defaultRoomName,
       username: profile.username,
@@ -136,7 +140,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
   async function handleInspectNetwork() {
     const result = await inspectNetworkBridge();
     setCommandResult(result);
-    await syncActionToServer("desktop-inspect", result);
+    await syncActionToServer("desktop-inspect", result, "desktop-manual");
     onUpdateConnectionContext({
       roomId: settings.defaultRoomName,
       username: profile.username,
@@ -213,6 +217,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
         <div className="settings-value">{connectionContext.roomId}</div>
         <div className="settings-meta">来源：{connectionContext.source} · 时间：{connectionContext.updatedAt}</div>
         <div className="settings-meta">服务端 recent action：{status.recentAction.action} · {status.recentAction.updatedAt}</div>
+        <div className="settings-meta">服务端 source：{status.recentAction.source} · PID：{status.recentAction.pid ?? "n/a"}</div>
       </div>
     </section>
   );
