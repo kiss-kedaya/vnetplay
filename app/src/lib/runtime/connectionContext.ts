@@ -7,6 +7,7 @@ export type ConnectionContext = {
   pid: number | null;
   source: "manual-start" | "auto-start" | "stop" | "inspect";
   updatedAt: string;
+  runtimeDurationLabel: string;
 };
 
 const storageKey = "vnetplay.runtime.last-connection-context";
@@ -20,6 +21,7 @@ const defaultContext: ConnectionContext = {
   pid: null,
   source: "inspect",
   updatedAt: "--",
+  runtimeDurationLabel: "idle",
 };
 
 export function resolveConnectionContext(): ConnectionContext {

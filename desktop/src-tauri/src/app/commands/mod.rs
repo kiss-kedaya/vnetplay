@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 
 use crate::app::services::n2n_service::{preview_edge_command, start_edge, stop_edge};
 use crate::app::services::system_identity::current_system_username;
@@ -7,6 +7,33 @@ use crate::ipc::models::{CommandResponse, InspectSnapshot, StartNetworkRequest, 
 
 fn now_string() -> String {
     Utc::now().to_rfc3339()
+}
+
+fn runtime_duration_from_state(state: &DesktopState) -> (u64, String) {
+    if state.last_pid.is_none() {
+        return (0, "idle".to_string());
+    }
+
+    let Ok(started_at) = DateTime::parse_from_rfc3339(&state.last_started_at) else {
+        return (0, "unknown".to_string());
+    };
+
+    let seconds = (Utc::now() - started_at.with_timezone(&Utc)).num_seconds().max(0) as u64;
+    (seconds, format_duration_label(seconds))
+}
+
+fn format_duration_label(seconds: u64) -> String {
+    let hours = seconds / 3600;
+    let minutes = (seconds % 3600) / 60;
+    let remaining_seconds = seconds % 60;
+
+    if hours > 0 {
+        format!("{}h {}m {}s", hours, minutes, remaining_seconds)
+    } else if minutes > 0 {
+        format!("{}m {}s", minutes, remaining_seconds)
+    } else {
+        format!("{}s", remaining_seconds)
+    }
 }
 
 pub fn command_summary() -> &'static str {
@@ -33,7 +60,9 @@ pub fn start_network(state: &mut DesktopState, payload: StartNetworkRequest) -> 
     );
     state.last_pid = outcome.pid;
     if outcome.ok {
-        state.last_started_at = now_string();
+        let now = now_string();
+        state.last_started_at = now.clone();
+        state.runtime_started_at = now;
     }
 
     CommandResponse {
@@ -86,6 +115,8 @@ pub fn inspect_network(state: &DesktopState) -> CommandResponse {
 }
 
 fn build_inspect_snapshot(state: &DesktopState) -> InspectSnapshot {
+    let (runtime_duration_seconds, runtime_duration_label) = runtime_duration_from_state(state);
+
     InspectSnapshot {
         room_id: state.active_room.clone(),
         username: state.current_username.clone(),
@@ -107,5 +138,7 @@ fn build_inspect_snapshot(state: &DesktopState) -> InspectSnapshot {
         last_started_at: state.last_started_at.clone(),
         last_stopped_at: state.last_stopped_at.clone(),
         last_pid: state.last_pid,
+        runtime_duration_seconds,
+        runtime_duration_label,
     }
 }

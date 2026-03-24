@@ -44,6 +44,8 @@ const idleInspect: InspectSnapshot = {
   lastStartedAt: "--",
   lastStoppedAt: "--",
   lastPid: null,
+  runtimeDurationSeconds: 0,
+  runtimeDurationLabel: "idle",
 };
 
 const idleResult: DesktopCommandResult = {
@@ -122,6 +124,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       pid: result.pid ?? null,
       source: trigger === "auto" ? "auto-start" : "manual-start",
       updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+      runtimeDurationLabel: finalResult.inspect?.runtimeDurationLabel ?? "idle",
     });
   }
 
@@ -138,6 +141,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       pid: result.pid ?? null,
       source: "stop",
       updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+      runtimeDurationLabel: result.inspect?.runtimeDurationLabel ?? "idle",
     });
   }
 
@@ -154,6 +158,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       pid: result.pid ?? null,
       source: "inspect",
       updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+      runtimeDurationLabel: result.inspect?.runtimeDurationLabel ?? "idle",
     });
   }
 
@@ -209,6 +214,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
           <div><strong>最近启动</strong><span>{inspect.lastStartedAt}</span></div>
           <div><strong>最近停止</strong><span>{inspect.lastStoppedAt}</span></div>
           <div><strong>最近 PID</strong><span>{inspect.lastPid ?? "n/a"}</span></div>
+          <div><strong>运行时长</strong><span>{inspect.runtimeDurationLabel}</span></div>
         </div>
         <div className="command-log">
           <div className="command-log-label">命令预览</div>
@@ -218,7 +224,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       <div className="command-log card-subtle">
         <div className="command-log-label">桌面命令结果</div>
         <div className="command-log-detail">{commandResult.detail}</div>
-        <div className="command-log-meta">状态: {commandResult.ok ? "success" : "error"} | PID: {commandResult.pid ?? "n/a"}</div>
+        <div className="command-log-meta">状态: {commandResult.ok ? "success" : "error"} | PID: {commandResult.pid ?? "n/a"} | 运行时长: {inspect.runtimeDurationLabel}</div>
       </div>
       <div className="card-subtle settings-block">
         <div className="settings-label">服务端 recent action</div>

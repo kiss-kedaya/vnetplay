@@ -104,6 +104,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
         pid: null,
         source: "manual-start",
         updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+        runtimeDurationLabel: "idle",
       });
     } catch (error) {
       const detail = `快速创建失败：${errorDetail(error)}`;
@@ -117,6 +118,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
         pid: null,
         source: "manual-start",
         updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+        runtimeDurationLabel: "idle",
       });
     }
   }
@@ -139,6 +141,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
         pid: null,
         source: "manual-start",
         updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+        runtimeDurationLabel: "idle",
       });
     } catch (error) {
       const detail = `快速加入失败：${errorDetail(error)}`;
@@ -152,6 +155,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
         pid: null,
         source: "manual-start",
         updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
+        runtimeDurationLabel: "idle",
       });
     }
   }
@@ -161,7 +165,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
       <InfoCard title="当前玩家" value={profile.username} detail={`启动时默认读取系统用户名 ${profile.systemUsername}，可在设置页随时修改。`} footer={<StatusPill tone="online" text={profile.source === "system" ? "系统默认" : "已自定义"} />} />
       <InfoCard title="虚拟 IP" value={summary.overlayIp} detail="进入房间后自动分配，适合 LAN 游戏直连。" footer={<StatusPill tone="online" text="在线" />} />
       <InfoCard title="中继路径" value={summary.relay} detail={`当前房间 ${summary.activeRoom}，已连接 ${summary.roomMembers} 个成员。`} footer={<StatusPill tone="idle" text="智能选路" />} />
-      <InfoCard title="运行态 Telemetry" value={serverStatus.recentAction.action} detail={`最近时间 ${serverStatus.recentAction.updatedAt} · Source ${serverStatus.recentAction.source} · PID ${serverStatus.recentAction.pid ?? "n/a"}`} footer={<StatusPill tone={serverStatus.recentAction.success ? "online" : "warning"} text={serverStatus.recentAction.success ? "已同步" : "待排查"} />} />
+      <InfoCard title="运行态 Telemetry" value={serverStatus.recentAction.action} detail={`最近时间 ${serverStatus.recentAction.updatedAt} · Source ${serverStatus.recentAction.source} · PID ${serverStatus.recentAction.pid ?? "n/a"} · 本地运行 ${connectionContext.runtimeDurationLabel}`} footer={<StatusPill tone={serverStatus.recentAction.success ? "online" : "warning"} text={serverStatus.recentAction.success ? "已同步" : "待排查"} />} />
 
       <section className="card page-card quick-actions-card">
         <div className="section-header">
@@ -206,6 +210,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
           <div><strong>服务端时间</strong><span>{serverStatus.recentAction.updatedAt}</span></div>
           <div><strong>服务端来源</strong><span>{serverStatus.recentAction.source}</span></div>
           <div><strong>本地状态</strong><span>{connectionContext.success ? "success" : "error"}</span></div>
+          <div><strong>本地运行时长</strong><span>{connectionContext.runtimeDurationLabel}</span></div>
         </div>
         <div className="command-log card-subtle">
           <div className="command-log-label">服务端最近结果</div>
@@ -215,7 +220,7 @@ export function HomePage({ profile, settings, connectionContext, onUpdateConnect
         <div className="command-log card-subtle">
           <div className="command-log-label">本地最近结果</div>
           <div className="command-log-detail">{connectionContext.detail}</div>
-          <div className="command-log-meta">PID: {connectionContext.pid ?? "n/a"} | 服务端：{connectionContext.serverBaseUrl}</div>
+          <div className="command-log-meta">PID: {connectionContext.pid ?? "n/a"} | 服务端：{connectionContext.serverBaseUrl} | 运行时长: {connectionContext.runtimeDurationLabel}</div>
         </div>
       </section>
     </div>

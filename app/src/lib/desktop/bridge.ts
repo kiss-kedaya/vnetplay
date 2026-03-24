@@ -10,6 +10,8 @@ export type InspectSnapshot = {
   lastStartedAt: string;
   lastStoppedAt: string;
   lastPid: number | null;
+  runtimeDurationSeconds: number;
+  runtimeDurationLabel: string;
 };
 
 export type DesktopCommandResult = {

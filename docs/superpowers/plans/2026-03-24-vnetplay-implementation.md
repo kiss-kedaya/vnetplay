@@ -200,4 +200,5 @@
 - [x] Desktop inspect telemetry now includes runtime start time, last start time, last stop time, and last pid for richer runtime diagnostics.
 - [x] Home page mismatch warning now includes PID drift checks between local command state and server-side recent action.
 - [x] Home page top summary cards now surface runtime telemetry from the server-side recent-action feed.
+- [x] Desktop inspect telemetry now includes runtime duration, and the app surfaces that duration in both the network page and homepage summary.
 - [ ] Next pass: continue turning the shell into an end-to-end usable LAN client.
