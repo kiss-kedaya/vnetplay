@@ -72,7 +72,7 @@ export function HomePage({
     syncServerBaseUrl(trimmed);
     setLoading(true);
     try {
-      const items = await fetchRooms();
+      const items = await fetchRooms(trimmed);
       setRooms(items);
       if (items.length > 0 && !selectedRoomId) {
         setSelectedRoomId(items[0].roomId);
@@ -115,6 +115,7 @@ export function HomePage({
 
     try {
       const room = await createRoom({
+        baseUrl: trimmedServer,
         roomId: trimmedRoom,
         username: profile.username,
         clientId: profile.machineId,
@@ -181,6 +182,7 @@ export function HomePage({
 
     try {
       const room = await joinRoom({
+        baseUrl: trimmedServer,
         roomId: targetRoomId,
         username: profile.username,
         clientId: profile.machineId,

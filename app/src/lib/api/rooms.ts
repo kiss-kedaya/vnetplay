@@ -15,6 +15,7 @@ export type RoomItem = {
 };
 
 export type RoomPayload = {
+  baseUrl?: string;
   roomId: string;
   username: string;
   clientId: string;
@@ -68,8 +69,8 @@ function mapRoom(item: Record<string, unknown>): RoomItem {
   };
 }
 
-export async function fetchRooms(): Promise<RoomItem[]> {
-  const payload = await getJson<Array<Record<string, unknown>>>("/api/rooms");
+export async function fetchRooms(baseUrl?: string): Promise<RoomItem[]> {
+  const payload = await getJson<Array<Record<string, unknown>>>("/api/rooms", { baseUrl });
   return payload.map(mapRoom);
 }
 
@@ -81,7 +82,7 @@ export async function createRoom(payload: RoomPayload): Promise<RoomItem> {
     username: payload.username,
     client_id: payload.clientId,
     password: payload.password?.trim() || null,
-  });
+  }, { baseUrl: payload.baseUrl });
 
   return mapRoom(room);
 }
@@ -92,7 +93,7 @@ export async function joinRoom(payload: RoomPayload): Promise<RoomItem> {
     username: payload.username,
     client_id: payload.clientId,
     password: payload.password?.trim() || null,
-  });
+  }, { baseUrl: payload.baseUrl });
 
   return mapRoom(room);
 }

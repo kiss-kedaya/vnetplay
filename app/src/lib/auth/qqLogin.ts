@@ -3,7 +3,6 @@ export type QQLoginResult = {
   nickname?: string;
   avatar?: string;
   qqUid?: string;
-  accessToken?: string;
   error?: string;
 };
 
@@ -16,11 +15,18 @@ export type QQLoginState = {
 
 const STORAGE_KEY = "vnetplay.qq-login";
 
-// QQ登录配置
+type QQLoginRecord = {
+  nickname: string;
+  avatar: string;
+  qqUid: string;
+  loggedAt: string;
+};
+
 const QQ_CONFIG = {
-  appId: "2491",
-  appKey: "e67aed73acb100c2beaf6f9e62d03d29",
-  baseUrl: "https://u.daib.cn/connect.php",
+  appId: import.meta.env.VITE_QQ_APP_ID?.trim() || "2491",
+  appKey: import.meta.env.VITE_QQ_APP_KEY?.trim() || "e67aed73acb100c2beaf6f9e62d03d29",
+  baseUrl: import.meta.env.VITE_QQ_BASE_URL?.trim() || "https://u.daib.cn/connect.php",
+  redirectUri: import.meta.env.VITE_QQ_REDIRECT_URI?.trim() || "",
 };
 
 // 检测是否在 Tauri 环境中
@@ -57,7 +63,6 @@ async function openExternalUrl(url: string): Promise<boolean> {
         await tauri.shell.open(url);
         return true;
       }
-      console.warn("[QQ Login] Tauri API not available, falling back to window.open");
     } catch (error) {
       console.error("[QQ Login] Tauri window creation failed:", error);
     }
@@ -67,57 +72,107 @@ async function openExternalUrl(url: string): Promise<boolean> {
   return win !== null;
 }
 
-// 获取回调URL - 使用开发服务器地址
 function getRedirectUri(): string {
-  if (typeof window === "undefined") return "";
+  if (QQ_CONFIG.redirectUri) {
+    return QQ_CONFIG.redirectUri;
+  }
 
-  // 开发环境：固定使用开发服务器地址
-  // 注意：需要在 u.daib.cn 后台配置白名单
-  const { hostname, port } = window.location;
+  if (typeof window === "undefined") {
+    return "";
+  }
 
-  // 如果是 localhost，转换为 127.0.0.1
+  const { protocol, hostname, port } = window.location;
+
+  if (protocol !== "http:" && protocol !== "https:") {
+    return "";
+  }
+
   let host = hostname;
   if (hostname === "localhost") {
     host = "127.0.0.1";
   }
 
   const portSuffix = port ? `:${port}` : "";
-  return `http://${host}${portSuffix}/callback`;
+  return `${protocol}//${host}${portSuffix}/callback`;
 }
 
-// 处理QQ回调 - 用code换取用户信息
+function readStoredQQLoginRecord(): QQLoginRecord | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (!stored) {
+      return null;
+    }
+
+    const data = JSON.parse(stored) as Partial<QQLoginRecord>;
+    if (!data.nickname || !data.qqUid) {
+      return null;
+    }
+
+    return {
+      nickname: String(data.nickname),
+      avatar: String(data.avatar ?? ""),
+      qqUid: String(data.qqUid),
+      loggedAt: String(data.loggedAt ?? ""),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function handleQQCallback(code: string): Promise<QQLoginResult> {
   try {
-    console.log("[QQ Login] Handling callback with code:", code?.substring(0, 10) + "...");
-    
-    const url = `${QQ_CONFIG.baseUrl}?act=callback&appid=${QQ_CONFIG.appId}&appkey=${QQ_CONFIG.appKey}&type=qq&code=${code}`;
-    console.log("[QQ Login] Callback URL:", url);
-    
+    const params = new URLSearchParams({
+      act: "callback",
+      appid: QQ_CONFIG.appId,
+      appkey: QQ_CONFIG.appKey,
+      type: "qq",
+      code,
+    });
+
+    const url = `${QQ_CONFIG.baseUrl}?${params.toString()}`;
     const response = await fetch(url, {
       method: "GET",
       headers: {
         "Accept": "application/json",
       },
     });
-    
-    const data = await response.json();
-    console.log("[QQ Login] Callback response:", data);
-    
-    if (data.code === 0) {
-      console.log("[QQ Login] Login successful:", data.nickname, data.faceimg);
+
+    if (!response.ok) {
       return {
-        success: true,
-        nickname: data.nickname,
-        avatar: data.faceimg,
-        qqUid: data.social_uid,
-        accessToken: data.access_token,
+        success: false,
+        error: `登录服务异常 (${response.status})`,
       };
     }
-    
-    console.error("[QQ Login] Callback failed:", data.msg, data);
+
+    const data = await response.json() as Record<string, unknown>;
+
+    if (Number(data.code) === 0) {
+      const nickname = String(data.nickname ?? "").trim();
+      const avatar = String(data.faceimg ?? "");
+      const qqUid = String(data.social_uid ?? "").trim();
+
+      if (!nickname || !qqUid) {
+        return {
+          success: false,
+          error: "登录结果不完整，请重试",
+        };
+      }
+
+      return {
+        success: true,
+        nickname,
+        avatar,
+        qqUid,
+      };
+    }
+
     return {
       success: false,
-      error: data.msg || "登录失败",
+      error: String(data.msg ?? "登录失败"),
     };
   } catch (error) {
     console.error("[QQ Login] Error handling callback:", error);
@@ -129,41 +184,29 @@ export async function handleQQCallback(code: string): Promise<QQLoginResult> {
 }
 
 export function getStoredQQLogin(): QQLoginState {
-  if (typeof window === "undefined") {
-    return { isLoggedIn: false, nickname: null, avatar: null, qqUid: null };
-  }
-  
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const data = JSON.parse(stored);
-      return {
+  const record = readStoredQQLoginRecord();
+  return record
+    ? {
         isLoggedIn: true,
-        nickname: data.nickname,
-        avatar: data.avatar,
-        qqUid: data.qqUid,
-      };
-    }
-  } catch (error) {
-    console.error("Error reading QQ login state:", error);
-  }
-  
-  return { isLoggedIn: false, nickname: null, avatar: null, qqUid: null };
+        nickname: record.nickname,
+        avatar: record.avatar || null,
+        qqUid: record.qqUid,
+      }
+    : { isLoggedIn: false, nickname: null, avatar: null, qqUid: null };
 }
 
 export function saveQQLogin(result: QQLoginResult): void {
-  if (typeof window === "undefined" || !result.success) {
+  if (typeof window === "undefined" || !result.success || !result.nickname || !result.qqUid) {
     return;
   }
-  
-  const data = {
+
+  const data: QQLoginRecord = {
     nickname: result.nickname,
-    avatar: result.avatar,
+    avatar: result.avatar ?? "",
     qqUid: result.qqUid,
-    accessToken: result.accessToken,
     loggedAt: new Date().toISOString(),
   };
-  
+
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
@@ -174,19 +217,23 @@ export function clearQQLogin(): void {
   localStorage.removeItem(STORAGE_KEY);
 }
 
-// 启动QQ登录 - 先调用API获取授权URL，然后在新窗口打开
 export async function startQQLogin(): Promise<{ success: boolean; error?: string }> {
-  // 保存当前页面状态，登录后返回
   sessionStorage.setItem("vnetplay.qq-login-return-page", window.location.pathname);
-  
-  // 获取回调URL
+
   const redirectUri = getRedirectUri();
-  console.log("[QQ Login] Redirect URI:", redirectUri);
-  
-  // 调用API获取授权URL
-  const apiUrl = `${QQ_CONFIG.baseUrl}?act=login&appid=${QQ_CONFIG.appId}&appkey=${QQ_CONFIG.appKey}&type=qq&redirect_uri=${encodeURIComponent(redirectUri)}`;
-  console.log("[QQ Login] Fetching auth URL from API:", apiUrl);
-  
+  if (!redirectUri) {
+    return { success: false, error: "QQ 回调地址未配置，请设置 VITE_QQ_REDIRECT_URI" };
+  }
+
+  const params = new URLSearchParams({
+    act: "login",
+    appid: QQ_CONFIG.appId,
+    appkey: QQ_CONFIG.appKey,
+    type: "qq",
+    redirect_uri: redirectUri,
+  });
+  const apiUrl = `${QQ_CONFIG.baseUrl}?${params.toString()}`;
+
   try {
     const response = await fetch(apiUrl, {
       method: "GET",
@@ -194,20 +241,22 @@ export async function startQQLogin(): Promise<{ success: boolean; error?: string
         "Accept": "application/json",
       },
     });
-    
-    const data = await response.json();
-    console.log("[QQ Login] API response:", data);
-    
-    if (data.code === 0 && data.url) {
-      // 使用兼容方式打开授权页面
+
+    if (!response.ok) {
+      return { success: false, error: `获取授权链接失败 (${response.status})` };
+    }
+
+    const data = await response.json() as Record<string, unknown>;
+
+    if (Number(data.code) === 0 && typeof data.url === "string") {
       const opened = await openExternalUrl(data.url);
       if (!opened) {
         return { success: false, error: "无法打开登录窗口，请允许弹窗" };
       }
       return { success: true };
-    } else {
-      return { success: false, error: data.msg || "获取授权链接失败" };
     }
+
+    return { success: false, error: String(data.msg ?? "获取授权链接失败") };
   } catch (error) {
     console.error("[QQ Login] Error fetching auth URL:", error);
     return { success: false, error: "网络错误" };

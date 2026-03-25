@@ -7,7 +7,7 @@ import { readSystemIdentityBridge } from "./lib/desktop/bridge";
 import { hasJoinedRoom, resolveConnectionContext, saveConnectionContext, type ConnectionContext } from "./lib/runtime/connectionContext";
 import { resolveAppSettings, saveAppSettings, type AppSettings } from "./lib/settings/appSettings";
 import { resolveUserProfile, type UserProfile } from "./lib/profile/userProfile";
-import { getStoredQQLogin, type QQLoginState } from "./lib/auth/qqLogin";
+import { getStoredQQLogin, saveQQLogin, type QQLoginResult, type QQLoginState } from "./lib/auth/qqLogin";
 import { initializeTheme, getStoredTheme, saveTheme, watchSystemTheme, type Theme } from "./lib/theme/theme";
 import { navItems as baseNavItems } from "./lib/ui/nav";
 import { HomePage } from "./pages/home/HomePage";
@@ -41,7 +41,7 @@ type PageProps = {
 function renderPage(key: string, props: PageProps) {
   switch (key) {
     case "rooms":
-      return <RoomsPage profile={props.profile} settings={props.settings} connectionContext={props.connectionContext} onSaveSettings={props.onSaveSettings} onOpenPage={props.onOpenPage} onRequestNetworkStart={props.onRequestNetworkStart} onUpdateConnectionContext={props.onUpdateConnectionContext} />;
+      return <RoomsPage profile={props.profile} settings={props.settings} connectionContext={props.connectionContext} onOpenPage={props.onOpenPage} onRequestNetworkStart={props.onRequestNetworkStart} onUpdateConnectionContext={props.onUpdateConnectionContext} />;
     case "network":
       return <NetworkPage profile={props.profile} settings={props.settings} connectionContext={props.connectionContext} onUpdateConnectionContext={props.onUpdateConnectionContext} startRequest={props.networkStartRequest} onConsumeStartRequest={props.onConsumeNetworkStartRequest} />;
     case "diagnostics":
@@ -103,40 +103,22 @@ export function App() {
       // @ts-ignore
       const tauri = window.__TAURI__;
       if (tauri?.event?.listen) {
-        console.log("[App] Setting up QQ login event listener...");
-        const unlistenPromise = tauri.event.listen("qq-login-success", (event: any) => {
-          console.log("[App] QQ login success event received:", event);
-          console.log("[App] Event payload:", event.payload);
-          
-          // 直接使用事件中的数据更新状态
-          const { nickname, avatar, qqUid, accessToken } = event.payload || {};
-          
-          // 保存到 localStorage
-          const loginData = {
-            nickname,
-            avatar,
-            qqUid,
-            accessToken,
-            loggedAt: new Date().toISOString(),
-          };
-          localStorage.setItem("vnetplay.qq-login", JSON.stringify(loginData));
-          console.log("[App] Saved login data to localStorage:", loginData);
-          
-          // 更新状态
-          setQQLogin({
-            isLoggedIn: true,
-            nickname,
-            avatar,
-            qqUid,
-          });
-          
-          // 更新 profile
+        const unlistenPromise = tauri.event.listen("qq-login-success", (event: { payload?: unknown }) => {
+          const payload = event.payload as QQLoginResult | undefined;
+
+          if (!payload?.success) {
+            return;
+          }
+
+          saveQQLogin(payload);
+          setQQLogin(getStoredQQLogin());
+
           readSystemIdentityBridge().then((identity) => {
             setProfile(resolveUserProfile(identity.systemUsername, identity.machineId, identity.machineLabel));
           });
-          
+
           setActiveKey("settings");
-          toast.success(`QQ登录成功！欢迎，${nickname || "用户"}`);
+          toast.success(`QQ登录成功！欢迎，${payload.nickname || "用户"}`);
         });
         
         return () => {

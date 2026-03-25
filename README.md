@@ -131,6 +131,17 @@ scripts\windows\app-build.cmd
 .\build.cmd
 ```
 
+### QQ 登录可选环境变量
+
+如果需要给桌面包或非默认环境配置 QQ 登录，可以在启动前注入以下 Vite 环境变量：
+
+- `VITE_QQ_APP_ID`
+- `VITE_QQ_APP_KEY`
+- `VITE_QQ_BASE_URL`
+- `VITE_QQ_REDIRECT_URI`
+
+其中 `VITE_QQ_REDIRECT_URI` 适合用于打包后的桌面环境，避免回调地址依赖当前页面 origin。
+
 ### 启动 desktop
 
 ```powershell
