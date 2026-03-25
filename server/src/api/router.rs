@@ -69,6 +69,14 @@ struct HeartbeatResponse {
     node_id: String,
 }
 
+#[derive(Serialize)]
+struct LeaveRoomResponse {
+    room_id: String,
+    room_exists: bool,
+    removed_client: bool,
+    members: usize,
+}
+
 #[derive(Deserialize)]
 struct CreateRoomRequest {
     room_id: String,
@@ -85,6 +93,13 @@ struct JoinRoomRequest {
     username: String,
     client_id: String,
     password: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct LeaveRoomRequest {
+    room_id: String,
+    username: String,
+    client_id: String,
 }
 
 #[derive(Deserialize)]
@@ -234,6 +249,88 @@ async fn join_room(
     Err((StatusCode::NOT_FOUND, "room not found".to_string()))
 }
 
+async fn leave_room(
+    State(state): State<AppState>,
+    Json(payload): Json<LeaveRoomRequest>,
+) -> Result<Json<LeaveRoomResponse>, (StatusCode, String)> {
+    let room_id = payload.room_id.trim();
+    let username = payload.username.trim();
+    let client_id = payload.client_id.trim();
+
+    if room_id.is_empty() || username.is_empty() || client_id.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "room_id, username, and client_id are required".to_string(),
+        ));
+    }
+
+    let mut rooms = state.rooms.lock().expect("rooms mutex poisoned");
+
+    if let Some(index) = rooms.iter().position(|item| item.room_id == room_id) {
+        let mut room = rooms[index].clone();
+        let removed_client = room.remove_participant(client_id);
+        let response = if room.is_empty() {
+            rooms.remove(index);
+            LeaveRoomResponse {
+                room_id: room_id.to_string(),
+                room_exists: false,
+                removed_client,
+                members: 0,
+            }
+        } else {
+            let members = room.members;
+            rooms[index] = room;
+            LeaveRoomResponse {
+                room_id: room_id.to_string(),
+                room_exists: true,
+                removed_client,
+                members,
+            }
+        };
+
+        drop(rooms);
+
+        let detail = if response.removed_client {
+            if response.room_exists {
+                format!("user {} left room {}", username, room_id)
+            } else {
+                format!("user {} left room {} and the room closed", username, room_id)
+            }
+        } else {
+            format!(
+                "user {} attempted to leave room {} but was not present",
+                username, room_id
+            )
+        };
+
+        state.set_recent_action(
+            RecentAction::new(
+                if response.removed_client {
+                    "room-left"
+                } else {
+                    "room-leave-skipped"
+                },
+                room_id,
+                username,
+                &detail,
+                response.removed_client,
+            )
+            .with_source("server-room")
+            .with_pid(None),
+        );
+        state.persist();
+
+        return Ok(Json(response));
+    }
+
+    Ok(Json(LeaveRoomResponse {
+        room_id: room_id.to_string(),
+        room_exists: false,
+        removed_client: false,
+        members: 0,
+    }))
+}
+
 async fn network_status(State(state): State<AppState>) -> Json<NetworkStatus> {
     let heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
     let latest_heartbeat = latest_heartbeat(&heartbeats);
@@ -336,6 +433,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/rooms", get(rooms))
         .route("/api/rooms/create", post(create_room))
         .route("/api/rooms/join", post(join_room))
+        .route("/api/rooms/leave", post(leave_room))
         .route("/api/network/status", get(network_status))
         .route("/api/network/actions", get(recent_actions))
         .route("/api/network/action", post(sync_recent_action))

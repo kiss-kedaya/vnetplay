@@ -24,6 +24,13 @@ export type RoomPayload = {
   mode?: string;
 };
 
+export type LeaveRoomResponse = {
+  roomId: string;
+  roomExists: boolean;
+  removedClient: boolean;
+  members: number;
+};
+
 const fallbackRooms: RoomItem[] = [
   {
     roomId: "sts2-night-run",
@@ -96,6 +103,21 @@ export async function joinRoom(payload: RoomPayload): Promise<RoomItem> {
   }, { baseUrl: payload.baseUrl });
 
   return mapRoom(room);
+}
+
+export async function leaveRoom(payload: Pick<RoomPayload, "baseUrl" | "roomId" | "username" | "clientId">): Promise<LeaveRoomResponse> {
+  const response = await postJson<Record<string, unknown>>("/api/rooms/leave", {
+    room_id: payload.roomId,
+    username: payload.username,
+    client_id: payload.clientId,
+  }, { baseUrl: payload.baseUrl });
+
+  return {
+    roomId: String(response.room_id ?? payload.roomId),
+    roomExists: Boolean(response.room_exists),
+    removedClient: Boolean(response.removed_client),
+    members: Number(response.members ?? 0),
+  };
 }
 
 export { fallbackRooms };

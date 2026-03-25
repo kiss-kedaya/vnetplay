@@ -72,6 +72,41 @@ impl RoomSummary {
         }
     }
 
+    pub fn remove_participant(&mut self, client_id: &str) -> bool {
+        if let Some(index) = self
+            .participant_ids
+            .iter()
+            .position(|item| item == client_id)
+        {
+            self.participant_ids.remove(index);
+            self.participants.remove(index);
+            self.members = self.participant_ids.len();
+            self.last_active_at = current_timestamp();
+
+            if self.host_id == client_id {
+                if let Some(next_host_id) = self.participant_ids.first() {
+                    self.host_id = next_host_id.clone();
+                    self.host = self
+                        .participants
+                        .first()
+                        .cloned()
+                        .unwrap_or_else(|| "system".to_string());
+                } else {
+                    self.host.clear();
+                    self.host_id.clear();
+                }
+            }
+
+            return true;
+        }
+
+        false
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.participant_ids.is_empty()
+    }
+
     pub fn set_password(&mut self, password: Option<String>) {
         self.password = password.filter(|value| !value.trim().is_empty());
         self.requires_password = self.password.is_some();

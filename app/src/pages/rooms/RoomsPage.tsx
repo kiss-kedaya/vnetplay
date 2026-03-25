@@ -19,7 +19,7 @@ import {
   Shield,
 } from "lucide-react";
 import type { UserProfile } from "../../lib/profile/userProfile";
-import { fetchRooms, type RoomItem } from "../../lib/api/rooms";
+import { fetchRooms, leaveRoom, type RoomItem } from "../../lib/api/rooms";
 import { hasJoinedRoom, type ConnectionContext } from "../../lib/runtime/connectionContext";
 import { useLiveRefresh } from "../../lib/runtime/useLiveRefresh";
 import type { AppSettings } from "../../lib/settings/appSettings";
@@ -174,7 +174,28 @@ export function RoomsPage({
     window.setTimeout(() => setCopiedInvite(false), 2000);
   };
 
-  const handleLeaveRoom = () => {
+  const handleLeaveRoom = async () => {
+    let syncWarning = "";
+
+    if (serverBaseUrl.trim()) {
+      try {
+        const result = await leaveRoom({
+          baseUrl: serverBaseUrl,
+          roomId: activeRoom.roomId,
+          username: profile.username,
+          clientId: profile.machineId,
+        });
+
+        if (!result.removedClient) {
+          syncWarning = result.roomExists
+            ? "服务端未找到当前设备的房间记录，已仅清理本地状态。"
+            : "服务端房间已不存在，已清理本地状态。";
+        }
+      } catch (error) {
+        syncWarning = `服务端退出同步失败：${errorDetail(error)}`;
+      }
+    }
+
     onUpdateConnectionContext({
       ...connectionContext,
       joinedRoom: false,
@@ -185,6 +206,13 @@ export function RoomsPage({
       source: "stop",
       runtimeDurationLabel: "idle",
     });
+
+    if (syncWarning) {
+      toast.warning(syncWarning);
+    } else {
+      toast.success("已退出房间");
+    }
+
     onOpenPage("home");
   };
 
@@ -236,7 +264,7 @@ export function RoomsPage({
                 {copiedRoomId ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 {copiedRoomId ? "已复制" : "复制房间号"}
               </Button>
-              <Button variant="ghost" size="sm" onClick={handleLeaveRoom} className="text-muted-foreground">
+              <Button variant="ghost" size="sm" onClick={() => void handleLeaveRoom()} className="text-muted-foreground">
                 <ArrowLeft className="w-4 h-4 mr-1" />
                 退出
               </Button>
