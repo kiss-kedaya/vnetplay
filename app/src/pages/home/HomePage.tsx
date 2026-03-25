@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { errorDetail } from "../../lib/errors";
 import { createRoom, fetchRooms, joinRoom, type RoomItem } from "../../lib/api/rooms";
 import { appendRuntimeEvent } from "../../lib/runtime/runtimeEvents";
 import type { UserProfile } from "../../lib/profile/userProfile";
@@ -22,10 +23,6 @@ type HomePageProps = {
   onOpenPage: (key: string) => void;
   onRequestNetworkStart: (input: { roomId: string; serverBaseUrl: string; mode: "resume" }) => void;
 };
-
-function errorDetail(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 export function HomePage({
   profile,
@@ -287,7 +284,7 @@ export function HomePage({
             <div className="space-y-2">
               <Label>房间名</Label>
               <Input
-                placeholder="my-room-name"
+                placeholder="例如：周末联机房"
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value)}
               />

@@ -21,11 +21,41 @@ fn heartbeat_timestamp_millis(heartbeat: &NodeHeartbeat) -> i64 {
         .unwrap_or(0)
 }
 
-fn latest_heartbeat(heartbeats: &HashMap<String, NodeHeartbeat>) -> Option<&NodeHeartbeat> {
+fn latest_heartbeat<'a>(
+    heartbeats: &'a HashMap<String, NodeHeartbeat>,
+    room_id: Option<&str>,
+) -> Option<&'a NodeHeartbeat> {
     heartbeats
         .values()
         .filter(|heartbeat| heartbeat.is_recent(HEARTBEAT_TTL_SECONDS))
+        .filter(|heartbeat| room_id.is_none_or(|scope| heartbeat.room_id == scope))
         .max_by_key(|heartbeat| heartbeat_timestamp_millis(heartbeat))
+}
+
+fn latest_member_heartbeat<'a>(
+    heartbeats: &'a HashMap<String, NodeHeartbeat>,
+    room_id: &str,
+    client_id: &str,
+) -> Option<&'a NodeHeartbeat> {
+    heartbeats
+        .values()
+        .filter(|heartbeat| heartbeat.is_recent(HEARTBEAT_TTL_SECONDS))
+        .filter(|heartbeat| heartbeat.room_id == room_id && heartbeat.client_id == client_id)
+        .max_by_key(|heartbeat| heartbeat_timestamp_millis(heartbeat))
+}
+
+fn format_heartbeat_latency(heartbeat: Option<&NodeHeartbeat>) -> String {
+    heartbeat
+        .and_then(|item| (item.latency_ms > 0).then(|| format!("{} ms", item.latency_ms)))
+        .unwrap_or_else(|| "--".to_string())
+}
+
+fn format_heartbeat_overlay(heartbeat: Option<&NodeHeartbeat>) -> String {
+    heartbeat
+        .map(|item| item.overlay_ip.trim())
+        .filter(|value| !value.is_empty() && *value != "--")
+        .unwrap_or("--")
+        .to_string()
 }
 
 #[derive(Serialize)]
@@ -83,6 +113,9 @@ struct RoomMemberDetail {
     username: String,
     is_host: bool,
     presence: String,
+    overlay_ip: String,
+    latency: String,
+    relay: String,
     last_action: String,
     last_seen_at: String,
     detail: String,
@@ -184,8 +217,37 @@ fn build_room_member_detail(
     room: &RoomSummary,
     username: &str,
     client_id: &str,
+    heartbeats: &HashMap<String, NodeHeartbeat>,
     recent_actions: &[RecentAction],
 ) -> RoomMemberDetail {
+    if let Some(heartbeat) = latest_member_heartbeat(heartbeats, &room.room_id, client_id) {
+        return RoomMemberDetail {
+            client_id: client_id.to_string(),
+            username: username.to_string(),
+            is_host: room.host_id == client_id || room.host == username,
+            presence: "online".to_string(),
+            overlay_ip: format_heartbeat_overlay(Some(heartbeat)),
+            latency: format_heartbeat_latency(Some(heartbeat)),
+            relay: if heartbeat.relay_hint.trim().is_empty() {
+                "实时线路探测中".to_string()
+            } else {
+                heartbeat.relay_hint.clone()
+            },
+            last_action: "heartbeat".to_string(),
+            last_seen_at: heartbeat.received_at.clone(),
+            detail: format!(
+                "已收到心跳，overlay {}，延迟 {}{}",
+                format_heartbeat_overlay(Some(heartbeat)),
+                format_heartbeat_latency(Some(heartbeat)),
+                if heartbeat.relay_hint.trim().is_empty() {
+                    "".to_string()
+                } else {
+                    format!("，{}", heartbeat.relay_hint)
+                }
+            ),
+        };
+    }
+
     let latest_action = recent_actions.iter().find(|item| {
         item.room_id == room.room_id && (item.username == username || item.username == client_id)
     });
@@ -233,13 +295,20 @@ fn build_room_member_detail(
         username: username.to_string(),
         is_host: room.host_id == client_id || room.host == username,
         presence,
+        overlay_ip: "--".to_string(),
+        latency: "--".to_string(),
+        relay: "等待实时网络数据".to_string(),
         last_action,
         last_seen_at,
         detail,
     }
 }
 
-fn build_room_response(room: RoomSummary, recent_actions: &[RecentAction]) -> RoomResponse {
+fn build_room_response(
+    room: RoomSummary,
+    heartbeats: &HashMap<String, NodeHeartbeat>,
+    recent_actions: &[RecentAction],
+) -> RoomResponse {
     let member_count = room.participants.len().max(room.participant_ids.len());
     let member_details = (0..member_count)
         .map(|index| {
@@ -254,7 +323,7 @@ fn build_room_response(room: RoomSummary, recent_actions: &[RecentAction]) -> Ro
                 .cloned()
                 .unwrap_or_else(|| format!("{}-{}", room.host_id, index));
 
-            build_room_member_detail(&room, &username, &client_id, recent_actions)
+            build_room_member_detail(&room, &username, &client_id, heartbeats, recent_actions)
         })
         .collect();
 
@@ -271,7 +340,7 @@ async fn health() -> Json<HealthResponse> {
 async fn dashboard_summary(State(state): State<AppState>) -> Json<DashboardSummary> {
     let rooms = state.rooms.lock().expect("rooms mutex poisoned");
     let heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
-    let latest_heartbeat = latest_heartbeat(&heartbeats);
+    let latest_heartbeat = latest_heartbeat(&heartbeats, None);
 
     let active_room = rooms.first().cloned().unwrap_or(RoomSummary::new(
         "未连接".to_string(),
@@ -281,18 +350,17 @@ async fn dashboard_summary(State(state): State<AppState>) -> Json<DashboardSumma
         "unknown-machine".to_string(),
     ));
 
-    let overlay_ip = latest_heartbeat
-        .map(|item| item.overlay_ip.clone())
-        .unwrap_or_else(|| "--".to_string());
-
-    let latency = latest_heartbeat
-        .map(|item| format!("{} ms", item.latency_ms))
-        .unwrap_or_else(|| "--".to_string());
+    let overlay_ip = format_heartbeat_overlay(latest_heartbeat);
+    let latency = format_heartbeat_latency(latest_heartbeat);
 
     Json(DashboardSummary {
         overlay_ip,
-        relay: if latest_heartbeat.is_some() {
-            "Tokyo Relay / VPS".to_string()
+        relay: if let Some(heartbeat) = latest_heartbeat {
+            if heartbeat.relay_hint.trim().is_empty() {
+                "Tokyo Relay / VPS".to_string()
+            } else {
+                heartbeat.relay_hint.clone()
+            }
         } else {
             "服务端未连接".to_string()
         },
@@ -313,6 +381,12 @@ async fn rooms(State(state): State<AppState>) -> Json<Vec<RoomResponse>> {
     let room_items = rooms.clone();
     drop(rooms);
 
+    let heartbeats = state
+        .heartbeats
+        .lock()
+        .expect("heartbeats mutex poisoned")
+        .clone();
+
     let recent_actions = state
         .recent_actions
         .lock()
@@ -322,7 +396,7 @@ async fn rooms(State(state): State<AppState>) -> Json<Vec<RoomResponse>> {
     Json(
         room_items
             .into_iter()
-            .map(|room| build_room_response(room, &recent_actions))
+            .map(|room| build_room_response(room, &heartbeats, &recent_actions))
             .collect(),
     )
 }
@@ -372,13 +446,18 @@ async fn create_room(
     );
     state.persist();
 
+    let heartbeats = state
+        .heartbeats
+        .lock()
+        .expect("heartbeats mutex poisoned")
+        .clone();
     let recent_actions = state
         .recent_actions
         .lock()
         .expect("recent_actions mutex poisoned")
         .clone();
 
-    Ok(Json(build_room_response(room, &recent_actions)))
+    Ok(Json(build_room_response(room, &heartbeats, &recent_actions)))
 }
 
 async fn join_room(
@@ -421,12 +500,17 @@ async fn join_room(
             .with_pid(None),
         );
         state.persist();
+        let heartbeats = state
+            .heartbeats
+            .lock()
+            .expect("heartbeats mutex poisoned")
+            .clone();
         let recent_actions = state
             .recent_actions
             .lock()
             .expect("recent_actions mutex poisoned")
             .clone();
-        return Ok(Json(build_room_response(updated, &recent_actions)));
+        return Ok(Json(build_room_response(updated, &heartbeats, &recent_actions)));
     }
 
     Err((StatusCode::NOT_FOUND, "room not found".to_string()))
@@ -472,6 +556,14 @@ async fn leave_room(
         };
 
         drop(rooms);
+
+        if response.removed_client {
+            let mut heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
+            heartbeats.retain(|_, heartbeat| {
+                !(heartbeat.room_id == room_id && heartbeat.client_id == client_id)
+            });
+            drop(heartbeats);
+        }
 
         let detail = if response.removed_client {
             if response.room_exists {
@@ -519,8 +611,8 @@ async fn network_status(
     Query(query): Query<RoomScopedQuery>,
 ) -> Json<NetworkStatus> {
     let heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
-    let latest_heartbeat = latest_heartbeat(&heartbeats);
     let room_scope = normalized_room_scope(&query);
+    let latest_heartbeat = latest_heartbeat(&heartbeats, room_scope);
     let recent_action = {
         let recent_actions = state
             .recent_actions
@@ -528,17 +620,17 @@ async fn network_status(
             .expect("recent_actions mutex poisoned");
         latest_recent_action_for_room(&recent_actions, room_scope)
     };
-    let overlay_ip = latest_heartbeat
-        .map(|item| item.overlay_ip.clone())
-        .unwrap_or_else(|| "--".to_string());
-    let latency = latest_heartbeat
-        .map(|item| format!("{} ms", item.latency_ms))
-        .unwrap_or_else(|| "--".to_string());
+    let overlay_ip = format_heartbeat_overlay(latest_heartbeat);
+    let latency = format_heartbeat_latency(latest_heartbeat);
 
     Json(NetworkStatus {
         overlay_ip,
-        relay: if latest_heartbeat.is_some() {
-            "Tokyo Relay / VPS".to_string()
+        relay: if let Some(heartbeat) = latest_heartbeat {
+            if heartbeat.relay_hint.trim().is_empty() {
+                "Tokyo Relay / VPS".to_string()
+            } else {
+                heartbeat.relay_hint.clone()
+            }
         } else {
             "服务端未连接".to_string()
         },
@@ -608,18 +700,41 @@ async fn node_heartbeat(
 ) -> Json<HeartbeatResponse> {
     payload.received_at = chrono::Utc::now().to_rfc3339();
     let mut heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
-    heartbeats.insert(payload.node_id.clone(), payload.clone());
+    if payload.client_id.trim().is_empty() {
+        payload.client_id = payload.node_id.clone();
+    }
+
+    if payload.active {
+        heartbeats.insert(payload.node_id.clone(), payload.clone());
+    } else {
+        heartbeats.remove(&payload.node_id);
+    }
     drop(heartbeats);
     state.set_recent_action(
         RecentAction::new(
-            "node-heartbeat",
-            "heartbeat",
-            &payload.node_id,
+            if payload.active {
+                "node-heartbeat"
+            } else {
+                "node-heartbeat-stop"
+            },
+            if payload.room_id.trim().is_empty() {
+                "heartbeat"
+            } else {
+                &payload.room_id
+            },
+            if payload.username.trim().is_empty() {
+                &payload.node_id
+            } else {
+                &payload.username
+            },
             &format!(
-                "node {} heartbeat overlay {} {}ms",
-                payload.node_id, payload.overlay_ip, payload.latency_ms
+                "node {} {} overlay {} {}ms",
+                payload.node_id,
+                if payload.active { "heartbeat" } else { "stopped" },
+                payload.overlay_ip,
+                payload.latency_ms
             ),
-            true,
+            payload.active,
         )
         .with_source("server-heartbeat")
         .with_pid(None),

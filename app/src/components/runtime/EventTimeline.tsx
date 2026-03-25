@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { describeActionSource } from "../../features/network/networkSummary";
 import type { RuntimeEvent } from "../../lib/runtime/runtimeEvents";
 
 type EventTimelineProps = {
@@ -7,10 +8,10 @@ type EventTimelineProps = {
 };
 
 const scopeConfig: Record<string, { label: string; color: string }> = {
-  room: { label: "ROOM", color: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20" },
-  network: { label: "EDGE", color: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20" },
-  server: { label: "SRV", color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20" },
-  diagnostics: { label: "CHK", color: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20" },
+  room: { label: "房间", color: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20" },
+  network: { label: "网络", color: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20" },
+  server: { label: "服务端", color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20" },
+  diagnostics: { label: "排障", color: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20" },
 };
 
 export function EventTimeline({ events, emptyLabel = "暂无记录" }: EventTimelineProps) {
@@ -43,9 +44,9 @@ export function EventTimeline({ events, emptyLabel = "暂无记录" }: EventTime
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>{event.roomId}</span>
               <span>·</span>
-              <span>{event.source}</span>
+                <span>{describeActionSource(event.source)}</span>
+              </div>
             </div>
-          </div>
         );
       })}
     </div>

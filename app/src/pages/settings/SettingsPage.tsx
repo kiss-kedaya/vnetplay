@@ -195,23 +195,23 @@ export function SettingsPage({
               </div>
               <Input
                 id="room-name"
-                placeholder="my-room"
+                placeholder="例如：周末联机房"
                 value={defaultRoomName}
                 onChange={(e) => setDefaultRoomName(e.target.value)}
               />
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-1">
-                <Label htmlFor="supernode">Supernode</Label>
+                <Label htmlFor="supernode">中继节点（Supernode）</Label>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
                   </TooltipTrigger>
-                  <TooltipContent>
-                    <p>N2N超级节点地址</p>
-                    <p className="text-xs text-muted-foreground">格式: IP:端口</p>
-                  </TooltipContent>
-                </Tooltip>
+                <TooltipContent>
+                  <p>N2N 中继节点地址</p>
+                  <p className="text-xs text-muted-foreground">格式: IP:端口</p>
+                </TooltipContent>
+              </Tooltip>
               </div>
               <Input
                 id="supernode"
@@ -225,7 +225,7 @@ export function SettingsPage({
           <div className="flex flex-col gap-3 rounded-lg bg-muted/50 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <Label>自动连接</Label>
-              <p className="text-xs text-muted-foreground">进入网络页面时自动连接</p>
+              <p className="text-xs text-muted-foreground">进入网络页面时自动尝试启动本地网络</p>
             </div>
             <Switch
               checked={autoConnectOnLaunch}

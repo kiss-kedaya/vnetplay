@@ -24,10 +24,12 @@ import type { UserProfile } from "../../lib/profile/userProfile";
 import { syncRecentAction } from "../../lib/api/network";
 import { fetchRooms, leaveRoom, type RoomItem } from "../../lib/api/rooms";
 import { stopNetworkBridge } from "../../lib/desktop/bridge";
+import { errorDetail } from "../../lib/errors";
 import { hasJoinedRoom, type ConnectionContext } from "../../lib/runtime/connectionContext";
 import { appendRuntimeEvent } from "../../lib/runtime/runtimeEvents";
 import { useLiveRefresh } from "../../lib/runtime/useLiveRefresh";
 import type { AppSettings } from "../../lib/settings/appSettings";
+import { describeActionName, displayMetric } from "../../features/network/networkSummary";
 
 type RoomsPageProps = {
   profile: UserProfile;
@@ -45,6 +47,9 @@ type RoomMember = {
   isCurrentUser: boolean;
   avatar: string | null;
   presence: "online" | "joined" | "recent" | "offline";
+  overlayIp: string;
+  latency: string;
+  relay: string;
   lastAction: string;
   lastSeenAt: string;
   detail: string;
@@ -54,7 +59,7 @@ function buildFallbackRoom(connectionContext: ConnectionContext, profile: UserPr
   return {
     roomId: connectionContext.roomId,
     game: "Unknown",
-    mode: connectionContext.success ? "Network Active" : "Room Joined",
+    mode: connectionContext.success ? "本地网络已启动" : "已加入房间",
     members: 1,
     host: profile.username,
     hostId: profile.machineId,
@@ -65,10 +70,6 @@ function buildFallbackRoom(connectionContext: ConnectionContext, profile: UserPr
     requiresPassword: false,
     memberDetails: [],
   };
-}
-
-function errorDetail(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 function buildMembers(room: RoomItem, profile: UserProfile): RoomMember[] {
@@ -82,6 +83,9 @@ function buildMembers(room: RoomItem, profile: UserProfile): RoomMember[] {
           isCurrentUser,
           avatar: isCurrentUser ? profile.qqAvatar ?? null : null,
           presence: member.presence,
+          overlayIp: member.overlayIp,
+          latency: member.latency,
+          relay: member.relay,
           lastAction: member.lastAction,
           lastSeenAt: member.lastSeenAt,
           detail: member.detail,
@@ -99,6 +103,9 @@ function buildMembers(room: RoomItem, profile: UserProfile): RoomMember[] {
           isCurrentUser,
           avatar: isCurrentUser ? profile.qqAvatar ?? null : null,
           presence: isCurrentUser && room.mode.includes("Network") ? "online" : "joined",
+          overlayIp: "--",
+          latency: "--",
+          relay: "等待实时网络数据",
           lastAction: "room-snapshot",
           lastSeenAt: room.lastActiveAt,
           detail: isCurrentUser ? "当前设备" : id,
@@ -168,6 +175,7 @@ export function RoomsPage({
   const activeRoom = room ?? fallbackRoom;
   const members = useMemo(() => buildMembers(activeRoom, profile), [activeRoom, profile]);
   const onlineMembers = members.filter((member) => member.presence === "online").length;
+  const recentMembers = members.filter((member) => member.presence === "recent").length;
 
   async function loadCurrentRoom(options?: { silent?: boolean }) {
     const silent = options?.silent ?? false;
@@ -384,6 +392,7 @@ export function RoomsPage({
             <div className="p-3 rounded-lg bg-muted/50 text-center">
               <Users className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
               <p className="text-sm font-medium">{onlineMembers}/{members.length} 在线</p>
+              <p className="mt-1 text-xs text-muted-foreground">{recentMembers > 0 ? `${recentMembers} 人最近活跃` : "实时心跳优先"}</p>
             </div>
             <div className="p-3 rounded-lg bg-muted/50 text-center">
               <Server className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
@@ -402,6 +411,10 @@ export function RoomsPage({
           {loadError ? (
             <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 px-3 py-2 text-sm text-muted-foreground">
               {loadError}
+            </div>
+          ) : onlineMembers === 0 ? (
+            <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+              当前房间还没有成员被判定为在线。通常是刚加入房间、刚启动本地网络，或者服务端还没收到新的实时心跳。
             </div>
           ) : null}
         </CardContent>
@@ -443,7 +456,21 @@ export function RoomsPage({
                     <StatusPill tone={presenceTone(member.presence)} text={presenceLabel(member.presence)} />
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{member.detail}</p>
-                  <p className="text-xs text-muted-foreground truncate">动作：{member.lastAction} · 最近活跃：{member.lastSeenAt}</p>
+                  <div className="mt-2 grid gap-2 md:grid-cols-3">
+                    <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">虚拟 IP</p>
+                      <p className="mt-1 truncate text-xs font-medium text-foreground">{displayMetric(member.overlayIp, "待心跳")}</p>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">延迟</p>
+                      <p className="mt-1 truncate text-xs font-medium text-foreground">{displayMetric(member.latency, "待探测")}</p>
+                    </div>
+                    <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 md:col-span-1">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">线路提示</p>
+                      <p className="mt-1 text-xs font-medium text-foreground break-words">{displayMetric(member.relay, "等待实时网络数据")}</p>
+                    </div>
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground truncate">动作：{describeActionName(member.lastAction)} · 最近活跃：{member.lastSeenAt}</p>
                 </div>
               </div>
             ))}

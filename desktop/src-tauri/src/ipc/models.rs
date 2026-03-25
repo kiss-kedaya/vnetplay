@@ -39,4 +39,5 @@ pub struct StartNetworkRequest {
     pub username: String,
     pub community: String,
     pub supernode: String,
+    pub server_base_url: String,
 }

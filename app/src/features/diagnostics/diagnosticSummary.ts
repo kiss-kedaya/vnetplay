@@ -3,6 +3,13 @@ import type { RoomItem } from "../../lib/api/rooms";
 import type { DesktopCommandResult } from "../../lib/desktop/bridge";
 import { hasJoinedRoom, type ConnectionContext } from "../../lib/runtime/connectionContext";
 import type { AppSettings } from "../../lib/settings/appSettings";
+import { isDesktopBridgeUnavailable } from "../network/desktopPresentation";
+import {
+  describeActionName,
+  describeActionSource,
+  describeEdgeState,
+  parseLatencyMs,
+} from "../network/networkSummary";
 
 export type DiagnosticsTone = "online" | "warning" | "idle";
 
@@ -40,7 +47,7 @@ type BuildDiagnosticsSummaryInput = {
 };
 
 function isDesktopUnavailable(result: DesktopCommandResult): boolean {
-  return result.detail.toLowerCase().includes("desktop runtime unavailable");
+  return isDesktopBridgeUnavailable(result.detail);
 }
 
 function hasActiveConnection(context: ConnectionContext): boolean {
@@ -62,7 +69,7 @@ function buildSyncState(connectionContext: ConnectionContext, networkStatus: Net
     return {
       label: "等待桌面同步",
       tone: "idle" as const,
-      detail: `最近动作来自 ${recentAction.source}。`,
+      detail: `最近动作来自${describeActionSource(recentAction.source)}。`,
     };
   }
 
@@ -73,18 +80,18 @@ function buildSyncState(connectionContext: ConnectionContext, networkStatus: Net
   }
 
   if ((connectionContext.pid ?? null) !== (recentAction.pid ?? null)) {
-    mismatches.push(`PID ${connectionContext.pid ?? "n/a"} / ${recentAction.pid ?? "n/a"}`);
+    mismatches.push(`进程号 ${connectionContext.pid ?? "未记录"} / ${recentAction.pid ?? "未记录"}`);
   }
 
   if (connectionContext.success !== recentAction.success) {
-    mismatches.push(`状态 ${connectionContext.success ? "success" : "error"} / ${recentAction.success ? "success" : "error"}`);
+    mismatches.push(`状态 ${connectionContext.success ? "成功" : "失败"} / ${recentAction.success ? "成功" : "失败"}`);
   }
 
   if (mismatches.length === 0) {
     return {
       label: "已对齐",
       tone: "online" as const,
-      detail: `已对齐 ${recentAction.action}。`,
+      detail: `已对齐${describeActionName(recentAction.action)}。`,
     };
   }
 
@@ -103,6 +110,9 @@ export function buildDiagnosticsSummary(input: BuildDiagnosticsSummaryInput): Di
   const preferredRoomLabel = hasJoinedRoom(input.connectionContext)
     ? input.connectionContext.roomId
     : input.settings.defaultRoomName;
+  const currentRoom = input.rooms.find((room) => room.roomId === input.connectionContext.roomId);
+  const onlineMembers = currentRoom?.memberDetails.filter((member) => member.presence === "online").length ?? 0;
+  const latencyMs = parseLatencyMs(input.networkStatus?.latency ?? "");
 
   const checks: DiagnosticsCheck[] = [
     !activeServerBaseUrl
@@ -147,20 +157,20 @@ export function buildDiagnosticsSummary(input: BuildDiagnosticsSummaryInput): Di
         },
     desktopUnavailable
       ? {
-          label: "桌面 runtime",
+          label: "桌面联机引擎",
           value: "浏览器模式",
           detail: "当前不在桌面壳里。",
           tone: "warning",
         }
       : input.inspectResult.ok
         ? {
-            label: "桌面 runtime",
-            value: inspect?.edgeState ?? "ready",
+            label: "桌面联机引擎",
+            value: describeEdgeState(inspect?.edgeState ?? "idle"),
             detail: input.inspectResult.detail,
             tone: "online",
           }
         : {
-            label: "桌面 runtime",
+            label: "桌面联机引擎",
             value: "检查失败",
             detail: input.inspectResult.detail,
             tone: "warning",
@@ -218,7 +228,7 @@ export function buildDiagnosticsSummary(input: BuildDiagnosticsSummaryInput): Di
   if (hasActiveConnection(input.connectionContext) && inspect?.edgeState !== "running") {
     issues.push({
       title: "房间流程已选定，但本地网络还没跑起来",
-      detail: `${input.connectionContext.roomId} 已选，但 edge 还是 ${inspect?.edgeState ?? "unknown"}。`,
+      detail: `${input.connectionContext.roomId} 已选，但本地网络仍是 ${describeEdgeState(inspect?.edgeState ?? "idle")}。`,
       tone: "warning",
     });
   }
@@ -227,6 +237,30 @@ export function buildDiagnosticsSummary(input: BuildDiagnosticsSummaryInput): Di
     issues.push({
       title: "本地与服务端状态可能不一致",
       detail: syncState.detail,
+      tone: "warning",
+    });
+  }
+
+  if (hasActiveConnection(input.connectionContext) && input.networkStatus?.overlayIp === "--") {
+    issues.push({
+      title: "服务端还没收到当前房间的实时心跳",
+      detail: "本地 edge 可能已经启动，但虚拟 IP 仍为空，建议等待 5-10 秒后再刷新排障页。",
+      tone: "warning",
+    });
+  }
+
+  if (hasActiveConnection(input.connectionContext) && currentRoom && onlineMembers === 0) {
+    issues.push({
+      title: "房间成员列表里还没有在线成员",
+      detail: `当前房间 ${currentRoom.roomId} 已加入，但服务端还没有把任何成员判定为在线。`,
+      tone: "warning",
+    });
+  }
+
+  if (latencyMs !== null && latencyMs > 140) {
+    issues.push({
+      title: "当前线路延迟偏高",
+      detail: `最近探测延迟约为 ${input.networkStatus?.latency}，建议更换更近的 supernode 或稍后重试。`,
       tone: "warning",
     });
   }

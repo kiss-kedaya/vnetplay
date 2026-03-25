@@ -81,8 +81,8 @@ const platformGuides: Record<PlatformKey, PlatformGuide> = {
         description: "服务端能启动不代表别人能连上，公网或局域网环境都需要确认端口开放。",
         bullets: [
           "HTTP 控制面使用 9080/TCP。",
-          "Supernode 通常使用 7777/UDP。",
-          "Edge 虚拟网络通道通常使用 5645/UDP。",
+          "中继节点（Supernode）通常使用 7777/UDP。",
+          "本地网络通道通常使用 5645/UDP。",
         ],
       },
     ],
@@ -92,7 +92,7 @@ const platformGuides: Record<PlatformKey, PlatformGuide> = {
         description: "安装完成后先进入 `设置` 页面，不要急着开房或进房。",
         bullets: [
           "服务器地址填房主提供的 HTTP 地址，例如 `http://192.168.1.10:9080`。",
-          "Supernode 默认填房主机器的 `IP:7777`。",
+          "中继节点默认填房主机器的 `IP:7777`。",
           "默认房间名建议和常用房间保持一致，后续继续联机更顺手。",
         ],
       },
@@ -114,21 +114,21 @@ const platformGuides: Record<PlatformKey, PlatformGuide> = {
       },
     ],
     workflow: [
-      "`设置`：填服务器地址、Supernode、默认房间名。",
+      "`设置`：填服务器地址、中继节点、默认房间名。",
       "`联机`：创建房间或加入房间，确认没有报错。",
       "`房间`：核对房间号和成员列表，点击 `继续联机`。",
-      "`网络`：确认 Edge 为在线、PID 正常、服务端 recent action 与当前房间一致。",
-      "`排障`：如果服务端不可达或 recent action 漂移，在这里看原因。",
+      "`网络`：确认本地网络为在线、进程正常、服务端最近动作与当前房间一致。",
+      "`排障`：如果服务端不可达或最近动作漂移，在这里看原因。",
     ],
     validation: [
       "`房间` 页面能看到自己，且房间号正确。",
-      "`网络` 页面 `Edge` 状态为在线，`PID` 不为空。",
+      "`网络` 页面本地网络状态为在线，进程号不为空。",
       "`排障` 页面显示服务端在线，状态同步为已对齐或无明显阻塞。",
     ],
     troubleshooting: [
       {
         title: "能看到房间但继续联机失败",
-        detail: "优先检查 `Supernode` 地址、Windows 防火墙和 n2n-edge 是否可执行。",
+        detail: "优先检查中继节点地址、Windows 防火墙和 n2n-edge 是否可执行。",
       },
       {
         title: "QQ 登录弹窗授权成功但主窗口无变化",
@@ -176,7 +176,7 @@ const platformGuides: Record<PlatformKey, PlatformGuide> = {
         description: "先打开 `设置`，再回到 `联机`，不要一开始就直接点继续联机。",
         bullets: [
           "服务器地址填 `http://服务器IP:9080`。",
-          "Supernode 填 `服务器IP:7777`。",
+          "中继节点填 `服务器IP:7777`。",
           "如果你使用打包后的桌面环境做 QQ 登录，建议配置专用 `VITE_QQ_REDIRECT_URI`。",
         ],
       },
@@ -184,22 +184,22 @@ const platformGuides: Record<PlatformKey, PlatformGuide> = {
         title: "完成房间和网络流程",
         description: "macOS 下同样是先加入房间，再到 `网络` 页面启动本地 edge。",
         bullets: [
-          "如果 `房间` 页面已显示你，但 `网络` 页面仍 idle，说明房间态和网络态还没闭环。",
-          "可以在 `排障` 页面查看服务端和本机 inspect 是否一致。",
+          "如果 `房间` 页面已显示你，但 `网络` 页面仍显示待机，说明房间态和网络态还没闭环。",
+          "可以在 `排障` 页面查看服务端和本机检查结果是否一致。",
         ],
       },
     ],
     workflow: [
-      "准备好对应架构的 server 与 desktop 包。",
-      "在终端启动 server，并记下对外地址。",
-      "在桌面端 `设置` 中填服务端与 Supernode。",
+      "准备好对应架构的服务端与桌面端安装包。",
+      "在终端启动服务端，并记下对外地址。",
+      "在桌面端 `设置` 中填服务端与中继节点。",
       "在 `联机` 创建或加入房间。",
-      "在 `房间` 点击 `继续联机`，再去 `网络` 核对 PID 和 recent action。",
+      "在 `房间` 点击 `继续联机`，再去 `网络` 核对进程号和最近动作。",
     ],
     validation: [
-      "server 终端有监听日志，没有被系统安全策略直接杀掉。",
+      "服务端终端有监听日志，没有被系统安全策略直接杀掉。",
       "桌面端 `排障` 页能读到服务端健康状态。",
-      "当前房间 recent action 不会被别的房间覆盖。",
+      "当前房间最近动作不会被别的房间覆盖。",
     ],
     troubleshooting: [
       {
@@ -211,7 +211,7 @@ const platformGuides: Record<PlatformKey, PlatformGuide> = {
         detail: "优先检查是否使用了正确的回调地址；打包环境建议显式配置 `VITE_QQ_REDIRECT_URI`。",
       },
       {
-        title: "继续联机后状态仍 idle",
+        title: "继续联机后状态仍显示待机",
         detail: "通常是 n2n-edge 无法正常启动，或系统未允许桌面端访问相关可执行文件。",
       },
     ],
@@ -253,7 +253,7 @@ const platformGuides: Record<PlatformKey, PlatformGuide> = {
         description: "Linux 客户端流程和其他平台一致，优先在 `设置` 页面把地址配对正确。",
         bullets: [
           "服务器地址填 `http://你的Linux服务器IP:9080`。",
-          "Supernode 填 `你的Linux服务器IP:7777`。",
+          "中继节点填 `你的Linux服务器IP:7777`。",
           "若是局域网测试，也要确保同网段设备能访问该 Linux 主机。",
         ],
       },
@@ -261,14 +261,14 @@ const platformGuides: Record<PlatformKey, PlatformGuide> = {
         title: "联机和排障",
         description: "先建立房间，再启动网络，最后看 `排障` 页面确认状态是否一致。",
         bullets: [
-          "如果 `recent action` 不属于当前房间，说明你需要重新检查房间选择。",
-          "如果 `Overlay IP` 为 `--`，说明服务端当前还没收到有效 heartbeat。",
+          "如果“最近动作”不属于当前房间，说明你需要重新检查房间选择。",
+          "如果“虚拟 IP”为 `--`，说明服务端当前还没收到有效心跳。",
         ],
       },
     ],
     workflow: [
       "终端确认服务端能长期稳定运行。",
-      "客户端 `设置` 填 Linux 服务端地址与 Supernode。",
+      "客户端 `设置` 填 Linux 服务端地址与中继节点。",
       "在 `联机` 创建/加入房间。",
       "在 `房间` 页面确认成员后，点击 `继续联机`。",
       "在 `网络` 和 `排障` 页面确认 room-scoped 状态没有漂移。",
@@ -276,7 +276,7 @@ const platformGuides: Record<PlatformKey, PlatformGuide> = {
     validation: [
       "`curl http://服务器IP:9080/health` 返回正常。",
       "桌面端 `排障` 页显示服务端在线。",
-      "`网络` 页 recent action 和当前房间一致，不会串房。",
+      "`网络` 页最近动作和当前房间一致，不会串房。",
     ],
     troubleshooting: [
       {
@@ -284,8 +284,8 @@ const platformGuides: Record<PlatformKey, PlatformGuide> = {
         detail: "通常是 Linux 防火墙、云安全组或 NAT 转发没有配齐。",
       },
       {
-        title: "房间创建成功但没有 Overlay IP",
-        detail: "说明服务端控制面可用，但还没有收到属于该房间的有效 heartbeat。",
+        title: "房间创建成功但没有虚拟 IP",
+        detail: "说明服务端控制面可用，但还没有收到属于该房间的有效心跳。",
       },
       {
         title: "systemd 看起来启动了，但桌面端不可达",
@@ -296,11 +296,11 @@ const platformGuides: Record<PlatformKey, PlatformGuide> = {
 };
 
 const pageMap = [
-  { title: "设置", detail: "先填服务器地址、Supernode、默认房间名，QQ 登录也在这里完成。" },
+  { title: "设置", detail: "先填服务器地址、中继节点、默认房间名，QQ 登录也在这里完成。" },
   { title: "联机", detail: "创建房间或加入房间，完成房间层的选择和保存。" },
   { title: "房间", detail: "核对房间号、成员、邀请信息，并点击 `继续联机`。" },
-  { title: "网络", detail: "真正启动本机 edge，检查 PID、recent action 和当前线路状态。" },
-  { title: "排障", detail: "对比服务端、本机 inspect 和同步状态，用来定位启动失败或串状态问题。" },
+  { title: "网络", detail: "真正启动本地网络，检查进程号、最近动作和当前线路状态。" },
+  { title: "排障", detail: "对比服务端、本机检查结果和同步状态，用来定位启动失败或串状态问题。" },
 ];
 
 function renderSection(section: GuideSection) {
@@ -364,7 +364,7 @@ export function GuidePage() {
                 <Server className="mt-0.5 h-5 w-5 text-primary" />
                 <div>
                   <p className="text-sm font-medium">先让服务端能被访问</p>
-                  <p className="mt-1 text-sm text-muted-foreground">只有 HTTP 控制面和 Supernode 端口都通，客户端才有意义。</p>
+                  <p className="mt-1 text-sm text-muted-foreground">只有 HTTP 控制面和中继节点端口都通，客户端才有意义。</p>
                 </div>
               </CardContent>
             </Card>
@@ -382,7 +382,7 @@ export function GuidePage() {
                 <ShieldCheck className="mt-0.5 h-5 w-5 text-primary" />
                 <div>
                   <p className="text-sm font-medium">出问题先看排障页</p>
-                  <p className="mt-1 text-sm text-muted-foreground">它会同时比较服务端状态、本机 inspect、recent action 是否对齐。</p>
+                  <p className="mt-1 text-sm text-muted-foreground">它会同时比较服务端状态、本机检查结果、最近动作是否对齐。</p>
                 </div>
               </CardContent>
             </Card>

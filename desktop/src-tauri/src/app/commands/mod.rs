@@ -46,6 +46,7 @@ fn format_duration_label(seconds: u64) -> String {
 
 fn cleanup_stale_pid(state: &mut DesktopState) {
     if state.last_pid.is_some() {
+        state.heartbeat_generation = state.heartbeat_generation.wrapping_add(1);
         state.last_pid = None;
         state.last_stopped_at = now_string();
         state.last_command = "inspect-auto-cleanup".to_string();
@@ -62,6 +63,7 @@ pub fn get_system_identity() -> SystemIdentityResponse {
 
 pub fn start_network(state: &mut DesktopState, payload: StartNetworkRequest) -> CommandResponse {
     state.last_command = "start-network".to_string();
+    state.heartbeat_generation = state.heartbeat_generation.wrapping_add(1);
 
     let mut replaced_detail = None;
 
@@ -97,6 +99,8 @@ pub fn start_network(state: &mut DesktopState, payload: StartNetworkRequest) -> 
     state.current_username = payload.username.clone();
     state.current_community = payload.community.clone();
     state.current_supernode = payload.supernode.clone();
+    state.current_server_base_url = payload.server_base_url.trim().to_string();
+    state.current_machine_id = current_machine_id();
     let outcome = start_edge(
         &state.active_room,
         &state.current_username,
@@ -122,6 +126,7 @@ pub fn start_network(state: &mut DesktopState, payload: StartNetworkRequest) -> 
 
 pub fn stop_network(state: &mut DesktopState) -> CommandResponse {
     state.last_command = "stop-network".to_string();
+    state.heartbeat_generation = state.heartbeat_generation.wrapping_add(1);
 
     match state.last_pid {
         Some(pid) => {

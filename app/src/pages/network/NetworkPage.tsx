@@ -1,17 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Play, Square, RefreshCw } from "lucide-react";
+import { Play, Square, RefreshCw, Activity, Route, RadioTower } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EventTimeline } from "../../components/runtime/EventTimeline";
 import { StatusPill } from "../../components/status/StatusPill";
+import { mapRecentActionsToRuntimeEvents } from "../../features/network/actionPresentation";
 import {
-  fetchNetworkStatus,
-  fetchRecentActionsHistory,
-  syncRecentAction,
-  type NetworkStatus,
-  type RecentAction,
-} from "../../lib/api/network";
+  createDesktopCommandResult,
+  desktopEngineLabel,
+  desktopEngineSnapshot,
+  desktopEngineTone,
+  emptyInspectSnapshot,
+} from "../../features/network/desktopPresentation";
+import {
+  describeActionName,
+  describeActionSource,
+  describeDesktopCommand,
+  describeEdgeState,
+  describeProcessLiveness,
+  displayProcessId,
+  displayMetric,
+  explainLatencyMetric,
+  explainOverlayMetric,
+  summarizeNetworkQuality,
+} from "../../features/network/networkSummary";
+import { fetchNetworkStatus, fetchRecentActionsHistory, syncRecentAction, type NetworkStatus, type RecentAction } from "../../lib/api/network";
 import {
   inspectNetworkBridge,
   startNetworkBridge,
@@ -37,7 +51,7 @@ const fallbackStatus: NetworkStatus = {
   recentAction: {
     action: "unavailable",
     roomId: "未连接",
-    username: "player",
+    username: "未同步",
     detail: "无法读取服务端侧网络状态",
     success: false,
     updatedAt: "--",
@@ -47,28 +61,16 @@ const fallbackStatus: NetworkStatus = {
 };
 
 const idleInspect: InspectSnapshot = {
-  roomId: "未连接",
-  username: "player",
+  ...emptyInspectSnapshot,
   community: "vnetplay-room",
   supernode: "127.0.0.1:7777",
   commandPreview: 'Command { std: "n2n-edge" "-c" "vnetplay-room" "-l" "127.0.0.1:7777" }',
-  edgeState: "idle",
-  lastCommand: "idle",
-  runtimeStartedAt: "--",
-  lastStartedAt: "--",
-  lastStoppedAt: "--",
-  lastPid: null,
-  pidAlive: false,
-  runtimeDurationSeconds: 0,
-  runtimeDurationLabel: "idle",
 };
 
-const idleResult: DesktopCommandResult = {
+const idleResult: DesktopCommandResult = createDesktopCommandResult("等待执行桌面命令", {
   ok: true,
-  detail: "等待执行桌面命令",
-  pid: null,
   inspect: idleInspect,
-};
+});
 
 type NetworkPageProps = {
   profile: UserProfile;
@@ -79,22 +81,6 @@ type NetworkPageProps = {
   onConsumeStartRequest: (id: number) => void;
 };
 
-function edgeTone(result: DesktopCommandResult, inspect: InspectSnapshot): "online" | "warning" | "idle" {
-  if (!result.ok) {
-    return "warning";
-  }
-
-  return inspect.edgeState === "running" ? "online" : "idle";
-}
-
-function edgeLabel(result: DesktopCommandResult, inspect: InspectSnapshot): string {
-  if (!result.ok) {
-    return "异常";
-  }
-
-  return inspect.edgeState === "running" ? "在线" : "待机";
-}
-
 function compactTime(value: string): string {
   if (value === "--") {
     return value;
@@ -102,32 +88,6 @@ function compactTime(value: string): string {
 
   const parts = value.split(" ");
   return parts[parts.length - 1] ?? value;
-}
-
-function formatServerTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString("zh-CN", { hour12: false });
-}
-
-function mapActionHistoryToEvents(actions: RecentAction[]): RuntimeEvent[] {
-  return actions.map((action, index) => {
-    const createdAtMs = Date.parse(action.updatedAt);
-    return {
-      id: `${action.updatedAt}-${action.action}-${action.roomId}-${index}`,
-      scope: "server" as const,
-      title: action.action,
-      detail: action.detail,
-      tone: action.action === "idle" ? "idle" : action.success ? "online" : "warning",
-      roomId: action.roomId,
-      source: action.source,
-      createdAt: formatServerTime(action.updatedAt),
-      createdAtMs: Number.isNaN(createdAtMs) ? 0 : createdAtMs,
-    };
-  });
 }
 
 export function NetworkPage({ profile, settings, connectionContext, onUpdateConnectionContext, startRequest, onConsumeStartRequest }: NetworkPageProps) {
@@ -143,9 +103,9 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
   const edgeSignatureRef = useRef("");
   const serverSignatureRef = useRef("");
 
-  const inspect = useMemo(() => inspectResult.inspect ?? commandResult.inspect ?? idleInspect, [inspectResult.inspect, commandResult.inspect]);
-  const runtimeTone = edgeTone(inspectResult, inspect);
-  const runtimeLabel = edgeLabel(inspectResult, inspect);
+  const inspect = useMemo(() => desktopEngineSnapshot(inspectResult, commandResult.inspect ?? idleInspect), [inspectResult, commandResult.inspect]);
+  const runtimeTone = desktopEngineTone(inspectResult, inspect);
+  const runtimeLabel = desktopEngineLabel(inspectResult, inspect);
   const syncTone = status.recentAction.source.startsWith("desktop")
     ? (status.recentAction.success ? "online" : "warning")
     : "idle";
@@ -153,19 +113,20 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     ? (status.recentAction.success ? "已回写" : "回写失败")
     : "待回写";
   const recentEvents = events.slice(0, 8);
-  const serverHistoryEvents = useMemo(() => mapActionHistoryToEvents(actionHistory.slice(0, 8)), [actionHistory]);
+  const serverHistoryEvents = useMemo(() => mapRecentActionsToRuntimeEvents(actionHistory.slice(0, 8)), [actionHistory]);
   const joinedRoom = hasJoinedRoom(connectionContext);
   const activeServerBaseUrl = connectionContext.serverBaseUrl || settings.serverBaseUrl;
+  const routeQuality = useMemo(() => summarizeNetworkQuality(status), [status]);
 
   function resolveRoomScope(contextSnapshot: ConnectionContext = connectionContext): string | undefined {
     return hasJoinedRoom(contextSnapshot) ? contextSnapshot.roomId : undefined;
   }
 
   const stats = [
-    { label: "Edge", value: runtimeLabel, meta: `PID ${inspect.lastPid ?? "n/a"}` },
+    { label: "本地网络", value: runtimeLabel, meta: `进程 ${displayProcessId(inspect.lastPid)}` },
     { label: "房间", value: joinedRoom ? connectionContext.roomId : settings.defaultRoomName, meta: profile.username },
-    { label: "线路", value: status.latency, meta: status.routeMode },
-    { label: "时长", value: inspect.runtimeDurationLabel, meta: liveUpdatedAt === "--" ? status.overlayIp : compactTime(liveUpdatedAt) },
+    { label: "线路", value: displayMetric(status.latency, "待探测"), meta: routeQuality.routeModeLabel },
+    { label: "时长", value: inspect.runtimeDurationLabel, meta: liveUpdatedAt === "--" ? displayMetric(status.overlayIp, "待心跳") : compactTime(liveUpdatedAt) },
   ];
 
   function recordEvent(input: Parameters<typeof appendRuntimeEvent>[0]) {
@@ -243,8 +204,8 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     if (edgeSignatureRef.current && edgeSignatureRef.current !== nextEdgeSignature) {
       recordEvent({
         scope: "network",
-        title: "Edge 变化",
-        detail: `${nextSnapshot.edgeState} · ${nextSnapshot.pidAlive ? "alive" : "idle"}`,
+        title: "本地网络变化",
+        detail: `${describeEdgeState(nextSnapshot.edgeState)} · ${describeProcessLiveness(nextSnapshot.pidAlive)}`,
         tone: nextSnapshot.edgeState === "running" && nextSnapshot.pidAlive ? "online" : "idle",
         roomId: nextSnapshot.roomId !== "--" ? nextSnapshot.roomId : settings.defaultRoomName,
         source: "poll-edge",
@@ -255,7 +216,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       recordEvent({
         scope: "server",
         title: "服务端动作",
-        detail: `${nextStatus.recentAction.action} · ${nextStatus.recentAction.roomId}`,
+        detail: `${describeActionName(nextStatus.recentAction.action)} · ${nextStatus.recentAction.roomId}`,
         tone: nextStatus.recentAction.success ? "online" : "warning",
         roomId: nextStatus.recentAction.roomId,
         source: nextStatus.recentAction.source,
@@ -268,8 +229,8 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     setStatus(nextStatus);
     setActionHistory(nextHistory);
     setInspectResult(nextInspect);
-    setLiveTone(edgeTone(nextInspect, nextInspect.inspect ?? idleInspect));
-    setLiveLabel(edgeLabel(nextInspect, nextInspect.inspect ?? idleInspect));
+    setLiveTone(desktopEngineTone(nextInspect, desktopEngineSnapshot(nextInspect, idleInspect)));
+    setLiveLabel(desktopEngineLabel(nextInspect, desktopEngineSnapshot(nextInspect, idleInspect)));
     setLiveUpdatedAt(new Date().toLocaleString("zh-CN", { hour12: false }));
     syncConnectionFromInspect(nextInspect, source, contextSnapshot);
   }
@@ -296,6 +257,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       username: profile.username,
       community: settings.defaultCommunity,
       supernode: settings.supernodeAddress,
+      serverBaseUrl: targetServerBaseUrl,
     });
 
     const detail = trigger === "auto" ? `自动：${result.detail}` : trigger === "resume" ? `继续：${result.detail}` : result.detail;
@@ -494,8 +456,57 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
           <div className="rounded-2xl border border-border/60 bg-muted/40 p-4">
             <p className="text-sm leading-6 text-foreground">{commandResult.detail}</p>
             <p className="mt-2 text-xs text-muted-foreground">
-              状态: {commandResult.ok ? "success" : "error"} | PID: {commandResult.pid ?? "n/a"} | 存活: {inspect.pidAlive ? "alive" : "idle/stale"}
+              状态: {commandResult.ok ? "成功" : "失败"} | 进程: {displayProcessId(commandResult.pid)} | 存活: {describeProcessLiveness(inspect.pidAlive)}
             </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              虚拟IP: {displayMetric(status.overlayIp, "待心跳")} | 延迟: {displayMetric(status.latency, "待探测")} | 线路: {displayMetric(status.relay, "待判定")}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-border/70 bg-card/90 shadow-sm">
+        <CardHeader>
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <CardTitle>线路解读</CardTitle>
+              <CardDescription>把实时心跳、虚拟 IP 和延迟数据翻译成更容易判断的结果。</CardDescription>
+            </div>
+            <StatusPill tone={routeQuality.tone} text={routeQuality.label} />
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-border/60 bg-muted/25 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Activity className="h-4 w-4 text-primary" />
+                虚拟 IP
+              </div>
+              <p className="mt-3 break-all text-lg font-semibold">{displayMetric(status.overlayIp, "待心跳")}</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {explainOverlayMetric(status.overlayIp)}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-muted/25 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <RadioTower className="h-4 w-4 text-primary" />
+                延迟
+              </div>
+              <p className="mt-3 text-lg font-semibold">{displayMetric(status.latency, "待探测")}</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {explainLatencyMetric(status.latency)}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-border/60 bg-muted/25 p-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Route className="h-4 w-4 text-primary" />
+                路由提示
+              </div>
+              <p className="mt-3 text-base font-semibold break-words">{displayMetric(status.relay, "待判定")}</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                {routeQuality.detail} 当前策略：{routeQuality.routeModeLabel}。
+              </p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -511,15 +522,15 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
           </CardHeader>
           <CardContent>
             <div className="key-value-grid">
-              <div className="key-value-item"><span>IP</span><span>{status.overlayIp}</span></div>
-              <div className="key-value-item"><span>中继</span><span>{status.relay}</span></div>
-              <div className="key-value-item"><span>模式</span><span>{status.routeMode}</span></div>
-              <div className="key-value-item"><span>Edge</span><span>{inspect.edgeState}</span></div>
-              <div className="key-value-item"><span>命令</span><span>{inspect.lastCommand}</span></div>
+              <div className="key-value-item"><span>虚拟 IP</span><span>{displayMetric(status.overlayIp, "待心跳")}</span></div>
+              <div className="key-value-item"><span>线路提示</span><span>{displayMetric(status.relay, "待判定")}</span></div>
+              <div className="key-value-item"><span>路由策略</span><span>{routeQuality.routeModeLabel}</span></div>
+              <div className="key-value-item"><span>本地网络状态</span><span>{describeEdgeState(inspect.edgeState)}</span></div>
+              <div className="key-value-item"><span>最近命令</span><span>{describeDesktopCommand(inspect.lastCommand)}</span></div>
               <div className="key-value-item"><span>启动于</span><span>{inspect.runtimeStartedAt}</span></div>
-              <div className="key-value-item"><span>PID</span><span>{inspect.lastPid ?? "n/a"}</span></div>
-              <div className="key-value-item"><span>存活</span><span>{inspect.pidAlive ? "alive" : "idle"}</span></div>
-              <div className="key-value-item"><span>时长</span><span>{inspect.runtimeDurationLabel}</span></div>
+              <div className="key-value-item"><span>进程</span><span>{displayProcessId(inspect.lastPid)}</span></div>
+              <div className="key-value-item"><span>进程存活</span><span>{describeProcessLiveness(inspect.pidAlive)}</span></div>
+              <div className="key-value-item"><span>运行时长</span><span>{inspect.runtimeDurationLabel}</span></div>
             </div>
           </CardContent>
         </Card>
@@ -533,13 +544,16 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
           </CardHeader>
           <CardContent>
             <div className="key-value-grid">
-              <div className="key-value-item"><span>动作</span><span>{status.recentAction.action}</span></div>
+              <div className="key-value-item"><span>最近动作</span><span>{describeActionName(status.recentAction.action)}</span></div>
               <div className="key-value-item"><span>房间</span><span>{status.recentAction.roomId}</span></div>
               <div className="key-value-item"><span>用户</span><span>{status.recentAction.username}</span></div>
-              <div className="key-value-item"><span>来源</span><span>{status.recentAction.source}</span></div>
-              <div className="key-value-item"><span>PID</span><span>{status.recentAction.pid ?? "n/a"}</span></div>
+              <div className="key-value-item"><span>来源</span><span>{describeActionSource(status.recentAction.source)}</span></div>
+              <div className="key-value-item"><span>进程</span><span>{displayProcessId(status.recentAction.pid)}</span></div>
               <div className="key-value-item"><span>时间</span><span>{status.recentAction.updatedAt}</span></div>
             </div>
+            <p className="mt-4 text-sm leading-6 text-muted-foreground">
+              服务端状态卡展示的是当前房间最近一次被回写的动作。若这里已经变化，但线路解读仍显示“等待心跳”，通常说明动作已同步，实时网络指标还在更新中。
+            </p>
           </CardContent>
         </Card>
       </div>

@@ -49,7 +49,7 @@ const fallbackStatus: NetworkStatus = {
   recentAction: {
     action: "unavailable",
     roomId: "未连接",
-    username: "player",
+    username: "未同步",
     detail: "无法读取服务端侧网络状态",
     success: false,
     updatedAt: "--",

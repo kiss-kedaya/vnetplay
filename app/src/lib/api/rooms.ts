@@ -5,6 +5,9 @@ export type RoomMemberDetail = {
   username: string;
   isHost: boolean;
   presence: "online" | "joined" | "recent" | "offline";
+  overlayIp: string;
+  latency: string;
+  relay: string;
   lastAction: string;
   lastSeenAt: string;
   detail: string;
@@ -80,6 +83,9 @@ function mapMemberDetail(item: Record<string, unknown>): RoomMemberDetail {
     username: String(item.username ?? "player"),
     isHost: Boolean(item.is_host),
     presence: (presence === "online" || presence === "recent" || presence === "offline" ? presence : "joined") as RoomMemberDetail["presence"],
+    overlayIp: String(item.overlay_ip ?? "--"),
+    latency: String(item.latency ?? "--"),
+    relay: String(item.relay ?? "等待实时网络数据"),
     lastAction: String(item.last_action ?? "room-snapshot"),
     lastSeenAt: String(item.last_seen_at ?? "--"),
     detail: String(item.detail ?? "--"),

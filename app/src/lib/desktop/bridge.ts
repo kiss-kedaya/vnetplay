@@ -33,7 +33,10 @@ export type StartNetworkPayload = {
   username: string;
   community: string;
   supernode: string;
+  serverBaseUrl: string;
 };
+
+export const DESKTOP_BRIDGE_UNAVAILABLE_CODE = "desktop-runtime-unavailable";
 
 type TauriEventApi = {
   listen?: (event: string, handler: (event: { payload?: unknown }) => void) => Promise<() => void>;
@@ -90,7 +93,7 @@ async function invokeDesktop(command: string, payload?: Record<string, unknown>)
   if (!invoke) {
     return {
       ok: false,
-      detail: `desktop runtime unavailable for ${command}; please run inside the Tauri desktop app`,
+      detail: `${DESKTOP_BRIDGE_UNAVAILABLE_CODE}: 请在桌面版中运行 ${command}`,
       pid: null,
       inspect: null,
     };
@@ -141,6 +144,7 @@ export function startNetworkBridge(payload: StartNetworkPayload): Promise<Deskto
       username: payload.username,
       community: payload.community,
       supernode: payload.supernode,
+      serverBaseUrl: payload.serverBaseUrl,
     },
   });
 }

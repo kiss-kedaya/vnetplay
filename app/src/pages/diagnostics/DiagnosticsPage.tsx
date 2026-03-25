@@ -6,7 +6,22 @@ import { Badge } from "@/components/ui/badge";
 import { InfoCard } from "../../components/cards/InfoCard";
 import { EventTimeline } from "../../components/runtime/EventTimeline";
 import { StatusPill } from "../../components/status/StatusPill";
+import { mapRecentActionsToRuntimeEvents } from "../../features/network/actionPresentation";
+import {
+  createDesktopCommandResult,
+  desktopEngineSnapshot,
+  emptyInspectSnapshot,
+  isDesktopBridgeUnavailable,
+} from "../../features/network/desktopPresentation";
 import { buildDiagnosticsSummary } from "../../features/diagnostics/diagnosticSummary";
+import {
+  describeEdgeState,
+  describeProcessLiveness,
+  describeRouteMode,
+  displayProcessId,
+  displayMetric,
+  summarizeNetworkQuality,
+} from "../../features/network/networkSummary";
 import { fetchDashboardSummary, type DashboardSummary } from "../../lib/api/dashboard";
 import { fetchServerHealth, type ServerHealth } from "../../lib/api/health";
 import { fetchNetworkStatus, fetchRecentActionsHistory, type NetworkStatus, type RecentAction } from "../../lib/api/network";
@@ -16,6 +31,7 @@ import {
   type DesktopCommandResult,
   type InspectSnapshot,
 } from "../../lib/desktop/bridge";
+import { errorDetail } from "../../lib/errors";
 import type { UserProfile } from "../../lib/profile/userProfile";
 import { hasJoinedRoom, type ConnectionContext } from "../../lib/runtime/connectionContext";
 import { useLiveRefresh } from "../../lib/runtime/useLiveRefresh";
@@ -23,64 +39,19 @@ import { resolveRuntimeEvents, type RuntimeEvent } from "../../lib/runtime/runti
 import type { AppSettings } from "../../lib/settings/appSettings";
 
 const emptyInspect: InspectSnapshot = {
+  ...emptyInspectSnapshot,
   roomId: "--",
-  username: "--",
-  community: "--",
-  supernode: "--",
-  commandPreview: "尚未读取本地命令预览",
-  edgeState: "idle",
-  lastCommand: "idle",
-  runtimeStartedAt: "--",
-  lastStartedAt: "--",
-  lastStoppedAt: "--",
-  lastPid: null,
-  pidAlive: false,
-  runtimeDurationSeconds: 0,
-  runtimeDurationLabel: "idle",
 };
 
-const initialInspectResult: DesktopCommandResult = {
-  ok: false,
-  detail: "尚未执行本地诊断。",
-  pid: null,
+const initialInspectResult: DesktopCommandResult = createDesktopCommandResult("尚未执行本地诊断。", {
   inspect: emptyInspect,
-};
+});
 
 type DiagnosticsPageProps = {
   profile: UserProfile;
   settings: AppSettings;
   connectionContext: ConnectionContext;
 };
-
-function errorDetail(reason: unknown): string {
-  return reason instanceof Error ? reason.message : String(reason);
-}
-
-function formatServerTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString("zh-CN", { hour12: false });
-}
-
-function mapActionHistoryToEvents(actions: RecentAction[]): RuntimeEvent[] {
-  return actions.map((action, index) => {
-    const createdAtMs = Date.parse(action.updatedAt);
-    return {
-      id: `${action.updatedAt}-${action.action}-${action.roomId}-${index}`,
-      scope: "server" as const,
-      title: action.action,
-      detail: action.detail,
-      tone: action.action === "idle" ? "idle" : action.success ? "online" : "warning",
-      roomId: action.roomId,
-      source: action.source,
-      createdAt: formatServerTime(action.updatedAt),
-      createdAtMs: Number.isNaN(createdAtMs) ? 0 : createdAtMs,
-    };
-  });
-}
 
 export function DiagnosticsPage({ profile, settings, connectionContext }: DiagnosticsPageProps) {
   const [loading, setLoading] = useState(false);
@@ -98,10 +69,19 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
   const [events, setEvents] = useState(() => resolveRuntimeEvents());
 
   const serverHealthy = serverHealth?.status === "ok";
-  const inspect = inspectResult.inspect ?? emptyInspect;
-  const desktopUnavailable = inspectResult.detail.toLowerCase().includes("desktop runtime unavailable");
+  const inspect = desktopEngineSnapshot(inspectResult, emptyInspect);
+  const desktopUnavailable = isDesktopBridgeUnavailable(inspectResult.detail);
   const activeServerBaseUrl = connectionContext.serverBaseUrl || settings.serverBaseUrl;
   const activeRoomScope = hasJoinedRoom(connectionContext) ? connectionContext.roomId : undefined;
+  const currentRoom = useMemo(
+    () => rooms.find((room) => room.roomId === connectionContext.roomId) ?? null,
+    [rooms, connectionContext.roomId],
+  );
+  const currentRoomOnlineMembers = currentRoom?.memberDetails.filter((member) => member.presence === "online").length ?? 0;
+  const routeQuality = useMemo(
+    () => networkStatus ? summarizeNetworkQuality(networkStatus) : null,
+    [networkStatus],
+  );
 
   const diagnostics = useMemo(
     () => buildDiagnosticsSummary({
@@ -117,7 +97,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
     }),
     [settings, connectionContext, activeServerBaseUrl, rooms, serverHealthy, serverError, roomsError, inspectResult, networkStatus],
   );
-  const serverHistoryEvents = useMemo(() => mapActionHistoryToEvents(actionHistory.slice(0, 8)), [actionHistory]);
+  const serverHistoryEvents = useMemo(() => mapRecentActionsToRuntimeEvents(actionHistory.slice(0, 8)), [actionHistory]);
 
   async function refreshDiagnostics(options?: { silent?: boolean }) {
     const silent = options?.silent ?? false;
@@ -159,12 +139,11 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
 
     if (inspectResultValue.status === "fulfilled") {
       setInspectResult(inspectResultValue.value);
-    } else {
-      setInspectResult({
-        ...initialInspectResult,
-        detail: `本地检查失败：${errorDetail(inspectResultValue.reason)}`,
-      });
-    }
+      } else {
+      setInspectResult(createDesktopCommandResult(`本地检查失败：${errorDetail(inspectResultValue.reason)}`, {
+        inspect: emptyInspect,
+      }));
+      }
 
     setEvents(resolveRuntimeEvents());
 
@@ -242,8 +221,8 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
           footer={<StatusPill tone={!activeServerBaseUrl || !serverHealthy ? "warning" : "online"} text={!activeServerBaseUrl ? "待配置" : serverHealthy ? "正常" : "失败"} />}
         />
         <InfoCard
-          title="桌面 runtime"
-          value={desktopUnavailable ? "浏览器模式" : inspectResult.ok ? inspect.edgeState : "待检查"}
+          title="桌面联机引擎"
+          value={desktopUnavailable ? "浏览器模式" : inspectResult.ok ? describeEdgeState(inspect.edgeState) : "待检查"}
           detail={desktopUnavailable ? "当前不在桌面壳里。" : inspectResult.detail}
           footer={<StatusPill tone={desktopUnavailable || !inspectResult.ok ? "warning" : "online"} text={desktopUnavailable ? "桥不可用" : inspectResult.ok ? "已响应" : "失败"} />}
         />
@@ -253,7 +232,9 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
           detail={
             serverHealthy
               ? rooms.length > 0
-                ? `默认房间 ${settings.defaultRoomName}，当前连接 ${connectionContext.roomId}`
+                ? currentRoom
+                  ? `默认房间 ${settings.defaultRoomName}，当前连接 ${connectionContext.roomId}，在线 ${currentRoomOnlineMembers}/${currentRoom.members} 人`
+                  : `默认房间 ${settings.defaultRoomName}，当前连接 ${connectionContext.roomId}`
                 : roomsError || "服务器在线，但房间为空。"
               : roomsError || "等服务端连通。"
           }
@@ -323,13 +304,27 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
                   <div className="key-value-item"><span>服务</span><span>{serverHealth?.service}</span></div>
                   <div className="key-value-item"><span>活跃房间</span><span>{dashboard.activeRoom}</span></div>
                   <div className="key-value-item"><span>房间人数</span><span>{dashboard.roomMembers}</span></div>
-                  <div className="key-value-item"><span>Overlay IP</span><span>{networkStatus.overlayIp}</span></div>
-                  <div className="key-value-item"><span>Latency</span><span>{networkStatus.latency}</span></div>
-                  <div className="key-value-item"><span>edge 状态</span><span>{networkStatus.edgeState}</span></div>
+                  <div className="key-value-item"><span>虚拟 IP</span><span>{displayMetric(networkStatus.overlayIp, "待心跳")}</span></div>
+                  <div className="key-value-item"><span>延迟</span><span>{displayMetric(networkStatus.latency, "待探测")}</span></div>
+                  <div className="key-value-item"><span>线路提示</span><span>{displayMetric(networkStatus.relay, "待判定")}</span></div>
+                  <div className="key-value-item"><span>路由策略</span><span>{describeRouteMode(networkStatus.routeMode)}</span></div>
+                  <div className="key-value-item"><span>本地网络状态</span><span>{describeEdgeState(networkStatus.edgeState)}</span></div>
                 </div>
                 <div className="guide-code-block text-xs">
                   {networkStatus.recentAction.detail}
                 </div>
+                <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                  这里显示的是服务端最近一次针对当前房间收到的网络质量数据；如果虚拟 IP 或延迟还是 `--`，通常代表心跳还没到达或刚刚重启。
+                </p>
+                {routeQuality ? (
+                  <div className="mt-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium">线路结论</span>
+                      <StatusPill tone={routeQuality.tone} text={routeQuality.label} />
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{routeQuality.detail}</p>
+                  </div>
+                ) : null}
               </>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -348,10 +343,11 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
             <div className="key-value-grid mb-4">
               <div className="key-value-item"><span>房间</span><span>{inspect.roomId}</span></div>
               <div className="key-value-item"><span>用户名</span><span>{inspect.username}</span></div>
-              <div className="key-value-item"><span>Community</span><span>{inspect.community}</span></div>
-              <div className="key-value-item"><span>Supernode</span><span>{inspect.supernode}</span></div>
-              <div className="key-value-item"><span>edge 状态</span><span>{inspect.edgeState}</span></div>
-              <div className="key-value-item"><span>PID 存活</span><span>{inspect.pidAlive ? "alive" : "idle"}</span></div>
+              <div className="key-value-item"><span>房间群组</span><span>{inspect.community}</span></div>
+              <div className="key-value-item"><span>中继节点</span><span>{inspect.supernode}</span></div>
+              <div className="key-value-item"><span>本地网络状态</span><span>{describeEdgeState(inspect.edgeState)}</span></div>
+              <div className="key-value-item"><span>进程存活</span><span>{describeProcessLiveness(inspect.pidAlive)}</span></div>
+              <div className="key-value-item"><span>进程号</span><span>{displayProcessId(inspect.lastPid)}</span></div>
             </div>
             <div className="guide-code-block text-xs">
               {inspect.commandPreview}
@@ -372,6 +368,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
               {rooms.slice(0, 6).map((room) => {
                 const connected = room.roomId === connectionContext.roomId && hasJoinedRoom(connectionContext);
                 const isDefaultRoom = room.roomId === settings.defaultRoomName;
+                const onlineMembers = room.memberDetails.filter((member) => member.presence === "online").length;
 
                 return (
                   <div
@@ -391,7 +388,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      {room.members} 人 · 房主：{room.host}
+                      {room.members} 人 · 在线 {onlineMembers} 人 · 房主：{room.host}
                     </div>
                   </div>
                 );
