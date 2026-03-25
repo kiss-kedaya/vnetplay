@@ -17,10 +17,14 @@ import {
   ArrowLeft,
   RefreshCw,
   Shield,
+  Loader2,
 } from "lucide-react";
 import type { UserProfile } from "../../lib/profile/userProfile";
+import { syncRecentAction } from "../../lib/api/network";
 import { fetchRooms, leaveRoom, type RoomItem } from "../../lib/api/rooms";
+import { stopNetworkBridge } from "../../lib/desktop/bridge";
 import { hasJoinedRoom, type ConnectionContext } from "../../lib/runtime/connectionContext";
+import { appendRuntimeEvent } from "../../lib/runtime/runtimeEvents";
 import { useLiveRefresh } from "../../lib/runtime/useLiveRefresh";
 import type { AppSettings } from "../../lib/settings/appSettings";
 
@@ -104,8 +108,10 @@ export function RoomsPage({
   const [room, setRoom] = useState<RoomItem | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [leaving, setLeaving] = useState(false);
 
   const isInRoom = hasJoinedRoom(connectionContext);
+  const runtimeActive = connectionContext.success || connectionContext.pid != null;
   const serverBaseUrl = connectionContext.serverBaseUrl || settings.serverBaseUrl;
   const fallbackRoom = useMemo(() => buildFallbackRoom(connectionContext, profile), [connectionContext, profile]);
   const activeRoom = room ?? fallbackRoom;
@@ -175,45 +181,95 @@ export function RoomsPage({
   };
 
   const handleLeaveRoom = async () => {
-    let syncWarning = "";
+    if (leaving) {
+      return;
+    }
 
-    if (serverBaseUrl.trim()) {
-      try {
-        const result = await leaveRoom({
-          baseUrl: serverBaseUrl,
+    setLeaving(true);
+
+    try {
+      let syncWarning = "";
+      let runtimeWarning = "";
+      let successMessage = "已退出房间";
+
+      if (runtimeActive) {
+        const stopResult = await stopNetworkBridge();
+
+        appendRuntimeEvent({
+          scope: "network",
+          title: stopResult.ok ? "离房前已停止网络" : "离房前停止失败",
+          detail: stopResult.detail,
+          tone: stopResult.ok ? "idle" : "warning",
           roomId: activeRoom.roomId,
-          username: profile.username,
-          clientId: profile.machineId,
+          source: "desktop-room-leave",
         });
 
-        if (!result.removedClient) {
-          syncWarning = result.roomExists
-            ? "服务端未找到当前设备的房间记录，已仅清理本地状态。"
-            : "服务端房间已不存在，已清理本地状态。";
+        if (serverBaseUrl.trim()) {
+          try {
+            await syncRecentAction({
+              action: "desktop-stop-room-leave",
+              roomId: activeRoom.roomId,
+              username: profile.username,
+              detail: stopResult.detail,
+              success: stopResult.ok,
+              source: "desktop-room-leave",
+              pid: stopResult.pid ?? null,
+            }, serverBaseUrl);
+          } catch {
+            // Ignore sync failures here; leave-room sync below will surface a warning if needed.
+          }
         }
-      } catch (error) {
-        syncWarning = `服务端退出同步失败：${errorDetail(error)}`;
+
+        if (stopResult.ok) {
+          successMessage = "已停止网络并退出房间";
+        } else {
+          runtimeWarning = `本地网络停止失败：${stopResult.detail}`;
+          successMessage = "已退出房间，本地网络可能仍在运行";
+        }
       }
+
+      if (serverBaseUrl.trim()) {
+        try {
+          const result = await leaveRoom({
+            baseUrl: serverBaseUrl,
+            roomId: activeRoom.roomId,
+            username: profile.username,
+            clientId: profile.machineId,
+          });
+
+          if (!result.removedClient) {
+            syncWarning = result.roomExists
+              ? "服务端未找到当前设备的房间记录，已仅清理本地状态。"
+              : "服务端房间已不存在，已清理本地状态。";
+          }
+        } catch (error) {
+          syncWarning = `服务端退出同步失败：${errorDetail(error)}`;
+        }
+      }
+
+      onUpdateConnectionContext({
+        ...connectionContext,
+        joinedRoom: false,
+        success: false,
+        roomId: "未连接",
+        detail: successMessage,
+        pid: null,
+        source: "stop",
+        runtimeDurationLabel: "idle",
+      });
+
+      const warningMessage = [runtimeWarning, syncWarning].filter(Boolean).join("；");
+
+      if (warningMessage) {
+        toast.warning(warningMessage);
+      } else {
+        toast.success(successMessage);
+      }
+
+      onOpenPage("home");
+    } finally {
+      setLeaving(false);
     }
-
-    onUpdateConnectionContext({
-      ...connectionContext,
-      joinedRoom: false,
-      success: false,
-      roomId: "未连接",
-      detail: "已退出房间",
-      pid: null,
-      source: "stop",
-      runtimeDurationLabel: "idle",
-    });
-
-    if (syncWarning) {
-      toast.warning(syncWarning);
-    } else {
-      toast.success("已退出房间");
-    }
-
-    onOpenPage("home");
   };
 
   const handleResumeNetwork = () => {
@@ -264,9 +320,9 @@ export function RoomsPage({
                 {copiedRoomId ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 {copiedRoomId ? "已复制" : "复制房间号"}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => void handleLeaveRoom()} className="text-muted-foreground">
-                <ArrowLeft className="w-4 h-4 mr-1" />
-                退出
+              <Button variant="ghost" size="sm" onClick={() => void handleLeaveRoom()} className="text-muted-foreground" disabled={leaving}>
+                {leaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ArrowLeft className="w-4 h-4 mr-1" />}
+                {leaving ? "退出中" : "退出"}
               </Button>
             </div>
           </div>
@@ -342,11 +398,11 @@ export function RoomsPage({
       </Card>
 
       <div className="grid grid-cols-2 gap-3">
-        <Button size="lg" className="h-14 bg-green-600 hover:bg-green-700" onClick={handleResumeNetwork}>
+        <Button size="lg" className="h-14 bg-green-600 hover:bg-green-700" onClick={handleResumeNetwork} disabled={leaving}>
           <Gamepad2 className="w-5 h-5 mr-2" />
           {connectionContext.success ? "重新检查网络" : "继续联机"}
         </Button>
-        <Button size="lg" variant="outline" className="h-14" onClick={handleCopyInvite}>
+        <Button size="lg" variant="outline" className="h-14" onClick={handleCopyInvite} disabled={leaving}>
           {copiedInvite ? <Check className="w-5 h-5 mr-2" /> : <Share2 className="w-5 h-5 mr-2" />}
           {copiedInvite ? "已复制邀请" : "邀请好友"}
         </Button>

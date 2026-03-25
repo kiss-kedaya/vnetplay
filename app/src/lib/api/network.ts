@@ -73,9 +73,9 @@ function mapRecentAction(payload: Record<string, unknown> | undefined): RecentAc
   };
 }
 
-export async function fetchNetworkStatus(): Promise<NetworkStatus> {
+export async function fetchNetworkStatus(baseUrl?: string): Promise<NetworkStatus> {
   try {
-    const payload = await getJson<Record<string, unknown>>("/api/network/status");
+    const payload = await getJson<Record<string, unknown>>("/api/network/status", { baseUrl });
 
     return {
       overlayIp: String(payload.overlay_ip ?? fallbackStatus.overlayIp),
@@ -93,7 +93,7 @@ export async function fetchNetworkStatus(): Promise<NetworkStatus> {
   }
 }
 
-export async function syncRecentAction(payload: SyncRecentActionPayload): Promise<RecentAction> {
+export async function syncRecentAction(payload: SyncRecentActionPayload, baseUrl?: string): Promise<RecentAction> {
   const response = await postJson<Record<string, unknown>>("/api/network/action", {
     action: payload.action,
     room_id: payload.roomId,
@@ -102,14 +102,14 @@ export async function syncRecentAction(payload: SyncRecentActionPayload): Promis
     success: payload.success,
     source: payload.source,
     pid: payload.pid,
-  });
+  }, { baseUrl });
 
   return mapRecentAction(response);
 }
 
-export async function fetchRecentActionsHistory(): Promise<RecentAction[]> {
+export async function fetchRecentActionsHistory(baseUrl?: string): Promise<RecentAction[]> {
   try {
-    const response = await getJson<RecentActionListResponse>("/api/network/actions");
+    const response = await getJson<RecentActionListResponse>("/api/network/actions", { baseUrl });
     return Array.isArray(response.items) ? response.items.map((item) => mapRecentAction(item)) : [];
   } catch {
     return [];
