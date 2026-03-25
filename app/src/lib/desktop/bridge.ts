@@ -35,12 +35,34 @@ export type StartNetworkPayload = {
   supernode: string;
 };
 
+type TauriEventApi = {
+  listen?: (event: string, handler: (event: { payload?: unknown }) => void) => Promise<() => void>;
+  emit?: (event: string, payload?: unknown) => Promise<void>;
+  emitTo?: (target: string, event: string, payload?: unknown) => Promise<void>;
+};
+
+type TauriWebviewWindowInstance = {
+  once: (event: string, handler: () => void) => void;
+  close: () => Promise<void>;
+  label: () => Promise<string>;
+};
+
+type TauriWebviewWindowApi = {
+  WebviewWindow?: new (label: string, options: Record<string, unknown>) => TauriWebviewWindowInstance;
+  getCurrentWebviewWindow?: () => TauriWebviewWindowInstance;
+};
+
 declare global {
   interface Window {
     __TAURI__?: {
       core?: {
         invoke?: <T = DesktopCommandResult>(command: string, payload?: Record<string, unknown>) => Promise<T>;
       };
+      event?: TauriEventApi;
+      shell?: {
+        open?: (url: string) => Promise<void>;
+      };
+      webviewWindow?: TauriWebviewWindowApi;
     };
   }
 }

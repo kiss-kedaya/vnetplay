@@ -67,21 +67,22 @@ async function openExternalUrl(url: string): Promise<boolean> {
   return win !== null;
 }
 
-// 获取回调URL - 确保与白名单匹配
+// 获取回调URL - 使用开发服务器地址
 function getRedirectUri(): string {
   if (typeof window === "undefined") return "";
-  
-  const { protocol, hostname, port } = window.location;
-  
-  // 开发环境：使用 127.0.0.1 而不是 localhost，因为白名单是 127.0.0.1
+
+  // 开发环境：固定使用开发服务器地址
+  // 注意：需要在 u.daib.cn 后台配置白名单
+  const { hostname, port } = window.location;
+
+  // 如果是 localhost，转换为 127.0.0.1
   let host = hostname;
   if (hostname === "localhost") {
     host = "127.0.0.1";
   }
-  
-  // 构建完整URL
+
   const portSuffix = port ? `:${port}` : "";
-  return `${protocol}//${host}${portSuffix}/callback`;
+  return `http://${host}${portSuffix}/callback`;
 }
 
 // 处理QQ回调 - 用code换取用户信息

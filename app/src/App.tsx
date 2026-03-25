@@ -4,11 +4,12 @@ import { Toaster, toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Header } from "./components/layout/Header";
 import { readSystemIdentityBridge } from "./lib/desktop/bridge";
-import { resolveConnectionContext, saveConnectionContext, type ConnectionContext } from "./lib/runtime/connectionContext";
+import { hasJoinedRoom, resolveConnectionContext, saveConnectionContext, type ConnectionContext } from "./lib/runtime/connectionContext";
 import { resolveAppSettings, saveAppSettings, type AppSettings } from "./lib/settings/appSettings";
 import { resolveUserProfile, type UserProfile } from "./lib/profile/userProfile";
 import { getStoredQQLogin, type QQLoginState } from "./lib/auth/qqLogin";
 import { initializeTheme, getStoredTheme, saveTheme, watchSystemTheme, type Theme } from "./lib/theme/theme";
+import { navItems as baseNavItems } from "./lib/ui/nav";
 import { HomePage } from "./pages/home/HomePage";
 import { RoomsPage } from "./pages/rooms/RoomsPage";
 import { NetworkPage } from "./pages/network/NetworkPage";
@@ -36,13 +37,6 @@ type PageProps = {
   onConsumeNetworkStartRequest: (id: number) => void;
   onQQLoginChange: () => void;
 };
-
-const navItems = [
-  { key: "home", label: "联机" },
-  { key: "rooms", label: "房间" },
-  { key: "guide", label: "教程" },
-  { key: "settings", label: "设置" },
-];
 
 function renderPage(key: string, props: PageProps) {
   switch (key) {
@@ -109,18 +103,44 @@ export function App() {
       // @ts-ignore
       const tauri = window.__TAURI__;
       if (tauri?.event?.listen) {
-        const unlisten = tauri.event.listen("qq-login-success", (event: any) => {
-          console.log("[App] QQ login success event:", event);
-          // 刷新登录状态
+        console.log("[App] Setting up QQ login event listener...");
+        const unlistenPromise = tauri.event.listen("qq-login-success", (event: any) => {
+          console.log("[App] QQ login success event received:", event);
+          console.log("[App] Event payload:", event.payload);
+          
+          // 直接使用事件中的数据更新状态
+          const { nickname, avatar, qqUid, accessToken } = event.payload || {};
+          
+          // 保存到 localStorage
+          const loginData = {
+            nickname,
+            avatar,
+            qqUid,
+            accessToken,
+            loggedAt: new Date().toISOString(),
+          };
+          localStorage.setItem("vnetplay.qq-login", JSON.stringify(loginData));
+          console.log("[App] Saved login data to localStorage:", loginData);
+          
+          // 更新状态
+          setQQLogin({
+            isLoggedIn: true,
+            nickname,
+            avatar,
+            qqUid,
+          });
+          
+          // 更新 profile
           readSystemIdentityBridge().then((identity) => {
             setProfile(resolveUserProfile(identity.systemUsername, identity.machineId, identity.machineLabel));
-            setQQLogin(getStoredQQLogin());
           });
+          
           setActiveKey("settings");
-          toast.success(`QQ登录成功！欢迎，${event.payload?.nickname || "用户"}`);
+          toast.success(`QQ登录成功！欢迎，${nickname || "用户"}`);
         });
+        
         return () => {
-          unlisten.then((fn: () => void) => fn());
+          unlistenPromise.then((fn: () => void) => fn());
         };
       }
     }
@@ -139,23 +159,25 @@ export function App() {
 
   // 当连接状态变化时，自动切换页面
   useEffect(() => {
-    const isConnected = connectionContext.success && connectionContext.roomId !== "未连接";
-    if (isConnected && activeKey === "home") {
+    const joinedRoom = hasJoinedRoom(connectionContext);
+    if (joinedRoom && activeKey === "home") {
       setActiveKey("rooms");
-    } else if (!isConnected && activeKey === "rooms") {
+    } else if (!joinedRoom && activeKey === "rooms") {
       setActiveKey("home");
     }
-  }, [connectionContext.success, connectionContext.roomId, activeKey]);
+  }, [connectionContext, activeKey]);
 
   // 根据连接状态过滤导航项
   const visibleNavItems = useMemo(() => {
-    const isConnected = connectionContext.success && connectionContext.roomId !== "未连接";
-    return navItems.filter((item) => {
-      if (item.key === "rooms") return isConnected;
-      if (item.key === "home") return !isConnected;
-      return true;
-    });
-  }, [connectionContext.success, connectionContext.roomId]);
+    const joinedRoom = hasJoinedRoom(connectionContext);
+    return baseNavItems
+      .filter((item) => {
+        if (item.key === "rooms") return joinedRoom;
+        if (item.key === "home") return !joinedRoom;
+        return true;
+      })
+      .map(({ key, label }) => ({ key, label }));
+  }, [connectionContext]);
 
   const refreshProfile = useCallback(() => {
     readSystemIdentityBridge().then((identity) => {

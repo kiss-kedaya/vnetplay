@@ -45,7 +45,6 @@ fn stop_network_command(state: tauri::State<Mutex<DesktopState>>) -> CommandResp
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_event::init())
         .manage(Mutex::new(DesktopState::default()))
         .invoke_handler(tauri::generate_handler![
             get_system_identity_command,

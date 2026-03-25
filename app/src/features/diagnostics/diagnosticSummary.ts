@@ -1,7 +1,7 @@
 import type { NetworkStatus } from "../../lib/api/network";
 import type { RoomItem } from "../../lib/api/rooms";
 import type { DesktopCommandResult } from "../../lib/desktop/bridge";
-import type { ConnectionContext } from "../../lib/runtime/connectionContext";
+import { hasJoinedRoom, type ConnectionContext } from "../../lib/runtime/connectionContext";
 import type { AppSettings } from "../../lib/settings/appSettings";
 
 export type DiagnosticsTone = "online" | "warning" | "idle";
@@ -43,7 +43,7 @@ function isDesktopUnavailable(result: DesktopCommandResult): boolean {
 }
 
 function hasActiveConnection(context: ConnectionContext): boolean {
-  return context.success && context.roomId !== "未连接";
+  return hasJoinedRoom(context);
 }
 
 function buildSyncState(connectionContext: ConnectionContext, networkStatus: NetworkStatus | null, serverHealthy: boolean) {

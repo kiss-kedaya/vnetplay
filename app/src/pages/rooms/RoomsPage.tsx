@@ -4,15 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import {
   Users,
   Wifi,
   Server,
@@ -21,13 +12,12 @@ import {
   Crown,
   Copy,
   Check,
-  Monitor,
   Globe,
   Link2,
   ArrowLeft,
 } from "lucide-react";
 import type { UserProfile } from "../../lib/profile/userProfile";
-import type { ConnectionContext } from "../../lib/runtime/connectionContext";
+import { hasJoinedRoom, type ConnectionContext } from "../../lib/runtime/connectionContext";
 import type { AppSettings } from "../../lib/settings/appSettings";
 
 type RoomsPageProps = {
@@ -48,17 +38,15 @@ const mockRoomUsers = [
 ];
 
 export function RoomsPage({
-  profile,
   settings,
   connectionContext,
   onOpenPage,
+  onRequestNetworkStart,
   onUpdateConnectionContext,
 }: RoomsPageProps) {
-  const [showLaunchDialog, setShowLaunchDialog] = useState(false);
-  const [launchPath, setLaunchPath] = useState("");
   const [copied, setCopied] = useState(false);
 
-  const isInRoom = connectionContext.success && connectionContext.roomId !== "未连接";
+  const isInRoom = hasJoinedRoom(connectionContext);
 
   const handleCopyRoomId = async () => {
     if (connectionContext.roomId) {
@@ -71,12 +59,23 @@ export function RoomsPage({
   const handleLeaveRoom = () => {
     onUpdateConnectionContext({
       ...connectionContext,
+      joinedRoom: false,
       success: false,
       roomId: "未连接",
       detail: "已退出房间",
+      pid: null,
       source: "stop",
+      runtimeDurationLabel: "idle",
     });
     onOpenPage("home");
+  };
+
+  const handleResumeNetwork = () => {
+    onRequestNetworkStart?.({
+      roomId: connectionContext.roomId,
+      serverBaseUrl: settings.serverBaseUrl,
+      mode: "resume",
+    });
   };
 
   if (!isInRoom) {
@@ -187,53 +186,16 @@ export function RoomsPage({
         <Button
           size="lg"
           className="h-14 bg-green-600 hover:bg-green-700"
-          onClick={() => setShowLaunchDialog(true)}
+          onClick={handleResumeNetwork}
         >
           <Gamepad2 className="w-5 h-5 mr-2" />
-          启动游戏
+          继续联机
         </Button>
         <Button size="lg" variant="outline" className="h-14">
           <Share2 className="w-5 h-5 mr-2" />
           邀请好友
         </Button>
       </div>
-
-      {/* 启动游戏弹窗 */}
-      <Dialog open={showLaunchDialog} onOpenChange={setShowLaunchDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>启动程序</DialogTitle>
-            <DialogDescription>
-              选择要启动的游戏或程序路径
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <div className="flex gap-2">
-              <Input
-                placeholder="程序路径..."
-                value={launchPath}
-                onChange={(e) => setLaunchPath(e.target.value)}
-                className="flex-1"
-              />
-              <Button variant="outline" onClick={() => setLaunchPath("C:\\Games\\Game.exe")}>
-                选择
-              </Button>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowLaunchDialog(false)}>
-              取消
-            </Button>
-            <Button
-              className="bg-green-600 hover:bg-green-700"
-              onClick={() => setShowLaunchDialog(false)}
-              disabled={!launchPath}
-            >
-              开始游戏
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

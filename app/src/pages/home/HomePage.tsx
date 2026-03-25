@@ -30,9 +30,9 @@ function errorDetail(error: unknown): string {
 export function HomePage({
   profile,
   settings,
-  connectionContext,
   onUpdateConnectionContext,
   onSaveSettings,
+  onOpenPage,
 }: HomePageProps) {
   const [serverBaseUrl, setServerBaseUrl] = useState(settings.serverBaseUrl);
   const [roomId, setRoomId] = useState(settings.defaultRoomName);
@@ -53,13 +53,23 @@ export function HomePage({
     [rooms, selectedRoomId]
   );
 
-  async function loadRooms() {
+  function syncServerBaseUrl(baseUrl: string) {
+    if (baseUrl !== settings.serverBaseUrl) {
+      onSaveSettings({ serverBaseUrl: baseUrl });
+    }
+  }
+
+  async function loadRooms(options?: { silent?: boolean }) {
+    const silent = options?.silent ?? false;
     const trimmed = serverBaseUrl.trim();
     if (!trimmed) {
-      toast.error("请先填写服务器地址");
+      if (!silent) {
+        toast.error("请先填写服务器地址");
+      }
       return;
     }
-    
+
+    syncServerBaseUrl(trimmed);
     setLoading(true);
     try {
       const items = await fetchRooms();
@@ -67,10 +77,14 @@ export function HomePage({
       if (items.length > 0 && !selectedRoomId) {
         setSelectedRoomId(items[0].roomId);
       }
-      toast.success(`已加载 ${items.length} 个房间`);
+      if (!silent) {
+        toast.success(`已加载 ${items.length} 个房间`);
+      }
     } catch (error) {
       console.error("Failed to load rooms:", error);
-      toast.error("加载房间列表失败：" + errorDetail(error));
+      if (!silent) {
+        toast.error("加载房间列表失败：" + errorDetail(error));
+      }
     } finally {
       setLoading(false);
     }
@@ -79,7 +93,9 @@ export function HomePage({
   useLiveRefresh({
     enabled: serverBaseUrl.trim().length > 0,
     intervalMs: 5000,
-    onRefresh: loadRooms,
+    onRefresh: async () => {
+      await loadRooms({ silent: true });
+    },
   });
 
   async function handleCreateRoom() {
@@ -94,6 +110,8 @@ export function HomePage({
       toast.error("请输入房间名");
       return;
     }
+
+    syncServerBaseUrl(trimmedServer);
 
     try {
       const room = await createRoom({
@@ -117,20 +135,22 @@ export function HomePage({
       toast.success(`房间 ${room.roomId} 创建成功`);
       
       onSaveSettings({ serverBaseUrl: trimmedServer, defaultRoomName: trimmedRoom });
-      
+
       onUpdateConnectionContext({
+        joinedRoom: true,
         roomId: room.roomId,
         username: profile.username,
         serverBaseUrl: trimmedServer,
-        success: true,
+        success: false,
         detail: `已创建房间 ${room.roomId}`,
         pid: null,
         source: "manual-start",
         updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
         runtimeDurationLabel: "idle",
       });
-      
+
       setRoomPassword("");
+      onOpenPage("rooms");
     } catch (error) {
       appendRuntimeEvent({
         scope: "room",
@@ -157,6 +177,8 @@ export function HomePage({
       return;
     }
 
+    syncServerBaseUrl(trimmedServer);
+
     try {
       const room = await joinRoom({
         roomId: targetRoomId,
@@ -177,18 +199,21 @@ export function HomePage({
       toast.success(`已加入房间 ${room.roomId}`);
       
       onSaveSettings({ serverBaseUrl: trimmedServer, defaultRoomName: targetRoomId });
-      
+
       onUpdateConnectionContext({
+        joinedRoom: true,
         roomId: room.roomId,
         username: profile.username,
         serverBaseUrl: trimmedServer,
-        success: true,
+        success: false,
         detail: `已进入房间 ${room.roomId}`,
         pid: null,
         source: "manual-start",
         updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
         runtimeDurationLabel: "idle",
       });
+      setJoinPassword("");
+      onOpenPage("rooms");
     } catch (error) {
       appendRuntimeEvent({
         scope: "room",
@@ -218,7 +243,7 @@ export function HomePage({
               onChange={(e) => setServerBaseUrl(e.target.value)}
               className="flex-1"
             />
-            <Button onClick={loadRooms} disabled={loading}>
+            <Button onClick={() => void loadRooms()} disabled={loading}>
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
               读取
             </Button>

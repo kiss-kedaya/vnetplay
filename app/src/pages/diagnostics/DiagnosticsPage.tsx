@@ -17,7 +17,7 @@ import {
   type InspectSnapshot,
 } from "../../lib/desktop/bridge";
 import type { UserProfile } from "../../lib/profile/userProfile";
-import type { ConnectionContext } from "../../lib/runtime/connectionContext";
+import { hasJoinedRoom, type ConnectionContext } from "../../lib/runtime/connectionContext";
 import { useLiveRefresh } from "../../lib/runtime/useLiveRefresh";
 import { resolveRuntimeEvents, type RuntimeEvent } from "../../lib/runtime/runtimeEvents";
 import type { AppSettings } from "../../lib/settings/appSettings";
@@ -367,7 +367,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
           <CardContent>
             <div className="grid grid-cols-2 gap-2">
               {rooms.slice(0, 6).map((room) => {
-                const connected = room.roomId === connectionContext.roomId && connectionContext.success;
+                const connected = room.roomId === connectionContext.roomId && hasJoinedRoom(connectionContext);
                 const isDefaultRoom = room.roomId === settings.defaultRoomName;
 
                 return (

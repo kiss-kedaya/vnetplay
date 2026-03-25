@@ -38,22 +38,22 @@ type RecentActionListResponse = {
 };
 
 const fallbackStatus: NetworkStatus = {
-  overlayIp: "10.24.8.12",
-  relay: "Tokyo Relay / VPS",
-  routeMode: "relay-preferred",
-  edgeState: "running",
-  latency: "32 ms",
+  overlayIp: "--",
+  relay: "服务端未连接",
+  routeMode: "unknown",
+  edgeState: "idle",
+  latency: "--",
   community: "vnetplay-room",
   supernode: "127.0.0.1:7777",
   secretMasked: "********",
   recentAction: {
-    action: "idle",
+    action: "unavailable",
     roomId: "未连接",
     username: "player",
-    detail: "尚未收到服务端侧最近动作",
-    success: true,
+    detail: "无法读取服务端侧网络状态",
+    success: false,
     updatedAt: "--",
-    source: "server",
+    source: "fallback",
     pid: null,
   },
 };

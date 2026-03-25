@@ -20,34 +20,34 @@ import {
   type InspectSnapshot,
 } from "../../lib/desktop/bridge";
 import type { UserProfile } from "../../lib/profile/userProfile";
-import type { ConnectionContext } from "../../lib/runtime/connectionContext";
+import { hasJoinedRoom, type ConnectionContext } from "../../lib/runtime/connectionContext";
 import { appendRuntimeEvent, resolveRuntimeEvents, type RuntimeEvent } from "../../lib/runtime/runtimeEvents";
 import { useLiveRefresh } from "../../lib/runtime/useLiveRefresh";
 import type { AppSettings } from "../../lib/settings/appSettings";
 
 const fallbackStatus: NetworkStatus = {
-  overlayIp: "10.24.8.12",
-  relay: "Tokyo Relay / VPS",
-  routeMode: "relay-preferred",
-  edgeState: "running",
-  latency: "32 ms",
+  overlayIp: "--",
+  relay: "服务端未连接",
+  routeMode: "unknown",
+  edgeState: "idle",
+  latency: "--",
   community: "vnetplay-room",
   supernode: "127.0.0.1:7777",
   secretMasked: "********",
   recentAction: {
-    action: "idle",
+    action: "unavailable",
     roomId: "未连接",
     username: "player",
-    detail: "尚未收到服务端侧最近动作",
-    success: true,
+    detail: "无法读取服务端侧网络状态",
+    success: false,
     updatedAt: "--",
-    source: "server",
+    source: "fallback",
     pid: null,
   },
 };
 
 const idleInspect: InspectSnapshot = {
-  roomId: "sts2-night-run",
+  roomId: "未连接",
   username: "player",
   community: "vnetplay-room",
   supernode: "127.0.0.1:7777",
@@ -154,10 +154,11 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     : "待回写";
   const recentEvents = events.slice(0, 8);
   const serverHistoryEvents = useMemo(() => mapActionHistoryToEvents(actionHistory.slice(0, 8)), [actionHistory]);
+  const joinedRoom = hasJoinedRoom(connectionContext);
 
   const stats = [
     { label: "Edge", value: runtimeLabel, meta: `PID ${inspect.lastPid ?? "n/a"}` },
-    { label: "房间", value: settings.defaultRoomName, meta: profile.username },
+    { label: "房间", value: joinedRoom ? connectionContext.roomId : settings.defaultRoomName, meta: profile.username },
     { label: "线路", value: status.latency, meta: status.routeMode },
     { label: "时长", value: inspect.runtimeDurationLabel, meta: liveUpdatedAt === "--" ? status.overlayIp : compactTime(liveUpdatedAt) },
   ];
@@ -193,16 +194,20 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     }
   }
 
-  function syncConnectionFromInspect(result: DesktopCommandResult, source: ConnectionContext["source"]) {
+  function syncConnectionFromInspect(
+    result: DesktopCommandResult,
+    source: ConnectionContext["source"],
+    contextSnapshot: ConnectionContext = connectionContext,
+  ) {
     const snapshot = result.inspect ?? idleInspect;
     const running = result.ok && snapshot.edgeState === "running" && snapshot.pidAlive;
-    const nextRoomId = snapshot.roomId !== "--"
-      ? snapshot.roomId
-      : connectionContext.roomId !== "未连接"
-        ? connectionContext.roomId
-        : "未连接";
+    const nextJoinedRoom = contextSnapshot.joinedRoom;
+    const nextRoomId = nextJoinedRoom
+      ? (snapshot.roomId !== "--" && snapshot.roomId !== "未连接" ? snapshot.roomId : contextSnapshot.roomId)
+      : "未连接";
 
     onUpdateConnectionContext({
+      joinedRoom: nextJoinedRoom,
       roomId: nextRoomId,
       username: profile.username,
       serverBaseUrl: settings.serverBaseUrl,
@@ -215,7 +220,10 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     });
   }
 
-  async function refreshLiveSnapshot(source: ConnectionContext["source"] = "inspect") {
+  async function refreshLiveSnapshot(
+    source: ConnectionContext["source"] = "inspect",
+    contextSnapshot: ConnectionContext = connectionContext,
+  ) {
     const [nextStatus, nextInspect, nextHistory] = await Promise.all([
       fetchNetworkStatus(),
       inspectNetworkBridge(),
@@ -257,7 +265,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     setLiveTone(edgeTone(nextInspect, nextInspect.inspect ?? idleInspect));
     setLiveLabel(edgeLabel(nextInspect, nextInspect.inspect ?? idleInspect));
     setLiveUpdatedAt(new Date().toLocaleString("zh-CN", { hour12: false }));
-    syncConnectionFromInspect(nextInspect, source);
+    syncConnectionFromInspect(nextInspect, source, contextSnapshot);
   }
 
   useEffect(() => {
@@ -301,7 +309,8 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     setCommandResult(finalResult);
     setInspectResult(finalResult);
     await syncActionToServer(trigger === "auto" ? "desktop-auto-start" : trigger === "resume" ? "desktop-resume-start" : "desktop-start", finalResult, trigger === "auto" ? "desktop-auto" : trigger === "resume" ? "desktop-resume" : "desktop-manual", targetRoomId);
-    onUpdateConnectionContext({
+    const nextConnectionContext: ConnectionContext = {
+      joinedRoom: true,
       roomId: targetRoomId,
       username: profile.username,
       serverBaseUrl: targetServerBaseUrl,
@@ -311,30 +320,36 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       source: trigger === "auto" ? "auto-start" : trigger === "resume" ? "resume" : "manual-start",
       updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
       runtimeDurationLabel: finalResult.inspect?.runtimeDurationLabel ?? "idle",
-    });
-    await refreshLiveSnapshot(trigger === "auto" ? "auto-start" : trigger === "resume" ? "resume" : "manual-start");
+    };
+    onUpdateConnectionContext(nextConnectionContext);
+    await refreshLiveSnapshot(
+      trigger === "auto" ? "auto-start" : trigger === "resume" ? "resume" : "manual-start",
+      nextConnectionContext,
+    );
   }
 
   async function handleStopNetwork() {
+    const currentRoomId = joinedRoom ? connectionContext.roomId : settings.defaultRoomName;
     const result = await stopNetworkBridge();
     recordEvent({
       scope: "network",
       title: result.ok ? "已停止" : "停止失败",
       detail: result.detail,
       tone: result.ok ? "idle" : "warning",
-      roomId: settings.defaultRoomName,
+      roomId: currentRoomId,
       source: "desktop-manual",
     });
     setCommandResult(result);
     setInspectResult(result);
-    await syncActionToServer("desktop-stop", result, "desktop-manual", settings.defaultRoomName);
+    await syncActionToServer("desktop-stop", result, "desktop-manual", currentRoomId);
     onUpdateConnectionContext({
-      roomId: settings.defaultRoomName,
+      joinedRoom,
+      roomId: joinedRoom ? connectionContext.roomId : "未连接",
       username: profile.username,
       serverBaseUrl: settings.serverBaseUrl,
       success: false,
       detail: result.detail,
-      pid: result.pid ?? null,
+      pid: null,
       source: "stop",
       updatedAt: new Date().toLocaleString("zh-CN", { hour12: false }),
       runtimeDurationLabel: result.inspect?.runtimeDurationLabel ?? "idle",
@@ -343,6 +358,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
   }
 
   async function handleInspectNetwork() {
+    const currentRoomId = joinedRoom ? connectionContext.roomId : settings.defaultRoomName;
     const result = await inspectNetworkBridge();
     const running = result.ok && Boolean(result.inspect?.pidAlive) && result.inspect?.edgeState === "running";
     recordEvent({
@@ -350,14 +366,15 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       title: result.ok ? "检查完成" : "检查失败",
       detail: result.detail,
       tone: result.ok ? (running ? "online" : "idle") : "warning",
-      roomId: settings.defaultRoomName,
+      roomId: currentRoomId,
       source: "desktop-manual",
     });
     setCommandResult(result);
     setInspectResult(result);
-    await syncActionToServer("desktop-inspect", result, "desktop-manual", settings.defaultRoomName);
+    await syncActionToServer("desktop-inspect", result, "desktop-manual", currentRoomId);
     onUpdateConnectionContext({
-      roomId: settings.defaultRoomName,
+      joinedRoom,
+      roomId: joinedRoom ? connectionContext.roomId : "未连接",
       username: profile.username,
       serverBaseUrl: settings.serverBaseUrl,
       success: running,

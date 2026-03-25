@@ -1,14 +1,32 @@
+use std::collections::HashMap;
+
 use axum::{
     extract::State,
     http::StatusCode,
     routing::{get, post},
     Json, Router,
 };
+use chrono::DateTime;
 use serde::{Deserialize, Serialize};
 
 use crate::models::{AppState, RecentAction};
 use crate::nodes::NodeHeartbeat;
 use crate::rooms::RoomSummary;
+
+const HEARTBEAT_TTL_SECONDS: i64 = 30;
+
+fn heartbeat_timestamp_millis(heartbeat: &NodeHeartbeat) -> i64 {
+    DateTime::parse_from_rfc3339(&heartbeat.received_at)
+        .map(|timestamp| timestamp.timestamp_millis())
+        .unwrap_or(0)
+}
+
+fn latest_heartbeat(heartbeats: &HashMap<String, NodeHeartbeat>) -> Option<&NodeHeartbeat> {
+    heartbeats
+        .values()
+        .filter(|heartbeat| heartbeat.is_recent(HEARTBEAT_TTL_SECONDS))
+        .max_by_key(|heartbeat| heartbeat_timestamp_millis(heartbeat))
+}
 
 #[derive(Serialize)]
 struct HealthResponse {
@@ -90,6 +108,7 @@ async fn health() -> Json<HealthResponse> {
 async fn dashboard_summary(State(state): State<AppState>) -> Json<DashboardSummary> {
     let rooms = state.rooms.lock().expect("rooms mutex poisoned");
     let heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
+    let latest_heartbeat = latest_heartbeat(&heartbeats);
 
     let active_room = rooms.first().cloned().unwrap_or(RoomSummary::new(
         "empty-room".to_string(),
@@ -99,17 +118,11 @@ async fn dashboard_summary(State(state): State<AppState>) -> Json<DashboardSumma
         "unknown-machine".to_string(),
     ));
 
-    let overlay_ip = heartbeats
-        .values()
-        .next()
+    let overlay_ip = latest_heartbeat
         .map(|item| item.overlay_ip.clone())
         .unwrap_or_else(|| "10.24.8.12".to_string());
 
-    let latency_ms = heartbeats
-        .values()
-        .next()
-        .map(|item| item.latency_ms)
-        .unwrap_or(32);
+    let latency_ms = latest_heartbeat.map(|item| item.latency_ms).unwrap_or(32);
 
     Json(DashboardSummary {
         overlay_ip,
@@ -223,27 +236,22 @@ async fn join_room(
 
 async fn network_status(State(state): State<AppState>) -> Json<NetworkStatus> {
     let heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
+    let latest_heartbeat = latest_heartbeat(&heartbeats);
     let recent_action = state
         .recent_action
         .lock()
         .expect("recent_action mutex poisoned")
         .clone();
-    let overlay_ip = heartbeats
-        .values()
-        .next()
+    let overlay_ip = latest_heartbeat
         .map(|item| item.overlay_ip.clone())
         .unwrap_or_else(|| "10.24.8.12".to_string());
-    let latency_ms = heartbeats
-        .values()
-        .next()
-        .map(|item| item.latency_ms)
-        .unwrap_or(32);
+    let latency_ms = latest_heartbeat.map(|item| item.latency_ms).unwrap_or(32);
 
     Json(NetworkStatus {
         overlay_ip,
         relay: "Tokyo Relay / VPS".to_string(),
         route_mode: "relay-preferred",
-        edge_state: if heartbeats.is_empty() {
+        edge_state: if latest_heartbeat.is_none() {
             "idle"
         } else {
             "running"
@@ -293,8 +301,9 @@ async fn recent_actions(State(state): State<AppState>) -> Json<RecentActionList>
 
 async fn node_heartbeat(
     State(state): State<AppState>,
-    Json(payload): Json<NodeHeartbeat>,
+    Json(mut payload): Json<NodeHeartbeat>,
 ) -> Json<HeartbeatResponse> {
+    payload.received_at = chrono::Utc::now().to_rfc3339();
     let mut heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
     heartbeats.insert(payload.node_id.clone(), payload.clone());
     drop(heartbeats);

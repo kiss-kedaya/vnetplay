@@ -7,10 +7,11 @@
     "core:default",
     "core:webview:allow-create-webview",
     "core:webview:allow-create-webview-window",
+    "core:window:allow-close",
     "core:event:default",
     "core:event:allow-emit",
     "core:event:allow-emit-to",
-    "core:window:allow-close",
+    "core:event:allow-listen",
     "shell:allow-open"
   ]
 }
