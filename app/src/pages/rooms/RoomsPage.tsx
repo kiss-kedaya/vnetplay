@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { StatusPill } from "@/components/status/StatusPill";
 import {
   Users,
   Server,
@@ -43,6 +44,9 @@ type RoomMember = {
   isHost: boolean;
   isCurrentUser: boolean;
   avatar: string | null;
+  presence: "online" | "joined" | "recent" | "offline";
+  lastAction: string;
+  lastSeenAt: string;
   detail: string;
 };
 
@@ -59,6 +63,7 @@ function buildFallbackRoom(connectionContext: ConnectionContext, profile: UserPr
     createdAt: "--",
     lastActiveAt: connectionContext.updatedAt,
     requiresPassword: false,
+    memberDetails: [],
   };
 }
 
@@ -67,22 +72,40 @@ function errorDetail(error: unknown): string {
 }
 
 function buildMembers(room: RoomItem, profile: UserProfile): RoomMember[] {
-  const total = Math.max(room.participants.length, room.participantIds.length, 1);
+  const mapped = room.memberDetails.length > 0
+    ? room.memberDetails.map((member) => {
+        const isCurrentUser = member.clientId === profile.machineId || member.username === profile.username;
+        return {
+          id: member.clientId,
+          name: member.username,
+          isHost: member.isHost,
+          isCurrentUser,
+          avatar: isCurrentUser ? profile.qqAvatar ?? null : null,
+          presence: member.presence,
+          lastAction: member.lastAction,
+          lastSeenAt: member.lastSeenAt,
+          detail: member.detail,
+        } satisfies RoomMember;
+      })
+    : Array.from({ length: Math.max(room.participants.length, room.participantIds.length, 1) }, (_, index) => {
+        const name = room.participants[index] ?? room.host;
+        const id = room.participantIds[index] ?? `${room.hostId}-${index}`;
+        const isCurrentUser = id === profile.machineId || name === profile.username;
 
-  return Array.from({ length: total }, (_, index) => {
-    const name = room.participants[index] ?? room.host;
-    const id = room.participantIds[index] ?? `${room.hostId}-${index}`;
-    const isCurrentUser = id === profile.machineId || name === profile.username;
+        return {
+          id,
+          name,
+          isHost: id === room.hostId || name === room.host,
+          isCurrentUser,
+          avatar: isCurrentUser ? profile.qqAvatar ?? null : null,
+          presence: isCurrentUser && room.mode.includes("Network") ? "online" : "joined",
+          lastAction: "room-snapshot",
+          lastSeenAt: room.lastActiveAt,
+          detail: isCurrentUser ? "当前设备" : id,
+        } satisfies RoomMember;
+      });
 
-    return {
-      id,
-      name,
-      isHost: id === room.hostId || name === room.host,
-      isCurrentUser,
-      avatar: isCurrentUser ? profile.qqAvatar ?? null : null,
-      detail: isCurrentUser ? "当前设备" : id,
-    };
-  }).sort((left, right) => {
+  return mapped.sort((left, right) => {
     if (left.isHost !== right.isHost) {
       return left.isHost ? -1 : 1;
     }
@@ -93,6 +116,34 @@ function buildMembers(room: RoomItem, profile: UserProfile): RoomMember[] {
 
     return left.name.localeCompare(right.name, "zh-CN");
   });
+}
+
+function presenceLabel(presence: RoomMember["presence"]): string {
+  switch (presence) {
+    case "online":
+      return "在线";
+    case "recent":
+      return "最近活跃";
+    case "offline":
+      return "离线";
+    case "joined":
+    default:
+      return "已进房";
+  }
+}
+
+function presenceTone(presence: RoomMember["presence"]): "online" | "warning" | "idle" | "error" {
+  switch (presence) {
+    case "online":
+      return "online";
+    case "recent":
+      return "warning";
+    case "offline":
+      return "error";
+    case "joined":
+    default:
+      return "idle";
+  }
 }
 
 export function RoomsPage({
@@ -116,6 +167,7 @@ export function RoomsPage({
   const fallbackRoom = useMemo(() => buildFallbackRoom(connectionContext, profile), [connectionContext, profile]);
   const activeRoom = room ?? fallbackRoom;
   const members = useMemo(() => buildMembers(activeRoom, profile), [activeRoom, profile]);
+  const onlineMembers = members.filter((member) => member.presence === "online").length;
 
   async function loadCurrentRoom(options?: { silent?: boolean }) {
     const silent = options?.silent ?? false;
@@ -294,14 +346,14 @@ export function RoomsPage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6">
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-2">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Link2 className="w-5 h-5" />
-                {activeRoom.roomId}
+                <span className="break-all">{activeRoom.roomId}</span>
               </CardTitle>
               <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                 <span>{activeRoom.game}</span>
@@ -315,12 +367,12 @@ export function RoomsPage({
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleCopyRoomId}>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Button variant="outline" size="sm" onClick={handleCopyRoomId} className="w-full sm:w-auto">
                 {copiedRoomId ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 {copiedRoomId ? "已复制" : "复制房间号"}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => void handleLeaveRoom()} className="text-muted-foreground" disabled={leaving}>
+              <Button variant="ghost" size="sm" onClick={() => void handleLeaveRoom()} className="w-full text-muted-foreground sm:w-auto" disabled={leaving}>
                 {leaving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <ArrowLeft className="w-4 h-4 mr-1" />}
                 {leaving ? "退出中" : "退出"}
               </Button>
@@ -331,7 +383,7 @@ export function RoomsPage({
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <div className="p-3 rounded-lg bg-muted/50 text-center">
               <Users className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
-              <p className="text-sm font-medium">{members.length} 人在线</p>
+              <p className="text-sm font-medium">{onlineMembers}/{members.length} 在线</p>
             </div>
             <div className="p-3 rounded-lg bg-muted/50 text-center">
               <Server className="w-4 h-4 mx-auto mb-1 text-muted-foreground" />
@@ -357,9 +409,9 @@ export function RoomsPage({
 
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base">房间成员</CardTitle>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary">{members.length} 人</Badge>
               <Button variant="outline" size="sm" onClick={() => void loadCurrentRoom()} disabled={loading}>
                 <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
@@ -388,8 +440,10 @@ export function RoomsPage({
                       </Badge>
                     ) : null}
                     {member.isCurrentUser ? <Badge variant="outline">本机</Badge> : null}
+                    <StatusPill tone={presenceTone(member.presence)} text={presenceLabel(member.presence)} />
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{member.detail}</p>
+                  <p className="text-xs text-muted-foreground truncate">动作：{member.lastAction} · 最近活跃：{member.lastSeenAt}</p>
                 </div>
               </div>
             ))}
@@ -397,7 +451,7 @@ export function RoomsPage({
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Button size="lg" className="h-14 bg-green-600 hover:bg-green-700" onClick={handleResumeNetwork} disabled={leaving}>
           <Gamepad2 className="w-5 h-5 mr-2" />
           {connectionContext.success ? "重新检查网络" : "继续联机"}

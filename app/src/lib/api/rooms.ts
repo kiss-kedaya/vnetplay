@@ -1,5 +1,15 @@
 import { getJson, postJson } from "./http";
 
+export type RoomMemberDetail = {
+  clientId: string;
+  username: string;
+  isHost: boolean;
+  presence: "online" | "joined" | "recent" | "offline";
+  lastAction: string;
+  lastSeenAt: string;
+  detail: string;
+};
+
 export type RoomItem = {
   roomId: string;
   game: string;
@@ -12,6 +22,7 @@ export type RoomItem = {
   createdAt: string;
   lastActiveAt: string;
   requiresPassword: boolean;
+  memberDetails: RoomMemberDetail[];
 };
 
 export type RoomPayload = {
@@ -44,6 +55,7 @@ const fallbackRooms: RoomItem[] = [
     createdAt: "2026-03-24 10:09:00",
     lastActiveAt: "2026-03-24 10:30:00",
     requiresPassword: true,
+    memberDetails: [],
   },
   {
     roomId: "mc-build-world",
@@ -57,8 +69,22 @@ const fallbackRooms: RoomItem[] = [
     createdAt: "2026-03-24 11:28:00",
     lastActiveAt: "2026-03-24 11:53:00",
     requiresPassword: false,
+    memberDetails: [],
   },
 ];
+
+function mapMemberDetail(item: Record<string, unknown>): RoomMemberDetail {
+  const presence = String(item.presence ?? "joined");
+  return {
+    clientId: String(item.client_id ?? "unknown-machine"),
+    username: String(item.username ?? "player"),
+    isHost: Boolean(item.is_host),
+    presence: (presence === "online" || presence === "recent" || presence === "offline" ? presence : "joined") as RoomMemberDetail["presence"],
+    lastAction: String(item.last_action ?? "room-snapshot"),
+    lastSeenAt: String(item.last_seen_at ?? "--"),
+    detail: String(item.detail ?? "--"),
+  };
+}
 
 function mapRoom(item: Record<string, unknown>): RoomItem {
   return {
@@ -73,6 +99,9 @@ function mapRoom(item: Record<string, unknown>): RoomItem {
     createdAt: String(item.created_at ?? "--"),
     lastActiveAt: String(item.last_active_at ?? "--"),
     requiresPassword: Boolean(item.requires_password),
+    memberDetails: Array.isArray(item.member_details)
+      ? item.member_details.map((entry) => mapMemberDetail(entry as Record<string, unknown>))
+      : [],
   };
 }
 

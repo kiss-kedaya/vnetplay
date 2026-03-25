@@ -82,7 +82,7 @@ export function SettingsPage({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       {/* 用户信息 */}
       <Card>
         <CardHeader>
@@ -94,15 +94,15 @@ export function SettingsPage({
         </CardHeader>
         <CardContent className="space-y-4">
           {/* QQ登录区域 */}
-          <div className="flex items-center gap-4">
+          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
             <Avatar className="h-16 w-16">
               <AvatarImage src={profile.qqAvatar} alt={profile.username} />
               <AvatarFallback className="bg-primary/10 text-primary text-xl">
                 {profile.username.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="text-lg font-medium">{profile.username}</span>
                 {qqLogin.isLoggedIn && (
                   <span className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full">
@@ -179,7 +179,7 @@ export function SettingsPage({
             <p className="text-xs text-muted-foreground">默认连接本机服务，如需连接远程服务器请修改此项</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <div className="flex items-center gap-1">
                 <Label htmlFor="room-name">默认房间名</Label>
@@ -222,7 +222,7 @@ export function SettingsPage({
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+          <div className="flex flex-col gap-3 rounded-lg bg-muted/50 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <Label>自动连接</Label>
               <p className="text-xs text-muted-foreground">进入网络页面时自动连接</p>

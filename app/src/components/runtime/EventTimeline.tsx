@@ -7,17 +7,17 @@ type EventTimelineProps = {
 };
 
 const scopeConfig: Record<string, { label: string; color: string }> = {
-  room: { label: "ROOM", color: "bg-blue-100 text-blue-700" },
-  network: { label: "EDGE", color: "bg-purple-100 text-purple-700" },
-  server: { label: "SRV", color: "bg-green-100 text-green-700" },
-  diagnostics: { label: "CHK", color: "bg-yellow-100 text-yellow-700" },
+  room: { label: "ROOM", color: "bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20" },
+  network: { label: "EDGE", color: "bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border border-cyan-500/20" },
+  server: { label: "SRV", color: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20" },
+  diagnostics: { label: "CHK", color: "bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-500/20" },
 };
 
 export function EventTimeline({ events, emptyLabel = "暂无记录" }: EventTimelineProps) {
   if (events.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <p className="text-sm text-gray-500">{emptyLabel}</p>
+        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
       </div>
     );
   }
@@ -25,7 +25,7 @@ export function EventTimeline({ events, emptyLabel = "暂无记录" }: EventTime
   return (
     <div className="space-y-2">
       {events.map((event) => {
-        const config = scopeConfig[event.scope] || { label: "LOG", color: "bg-gray-100 text-gray-700" };
+        const config = scopeConfig[event.scope] || { label: "LOG", color: "bg-muted text-muted-foreground border border-border/60" };
         
         return (
           <div
@@ -35,12 +35,12 @@ export function EventTimeline({ events, emptyLabel = "暂无记录" }: EventTime
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Badge className={config.color}>{config.label}</Badge>
-                <span className="font-medium text-gray-900">{event.title}</span>
+                <span className="font-medium text-foreground">{event.title}</span>
               </div>
-              <span className="text-xs text-gray-500">{event.createdAt}</span>
+              <span className="text-xs text-muted-foreground">{event.createdAt}</span>
             </div>
-            <p className="text-sm text-gray-600 mb-1">{event.detail}</p>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
+            <p className="text-sm text-muted-foreground mb-1 leading-6">{event.detail}</p>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>{event.roomId}</span>
               <span>·</span>
               <span>{event.source}</span>

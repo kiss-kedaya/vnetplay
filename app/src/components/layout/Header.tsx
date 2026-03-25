@@ -50,18 +50,18 @@ export function Header({
   return (
     <header className="app-header">
       <div className="header-inner">
-        {/* 左侧：Logo + 导航 */}
-        <div className="flex items-center gap-8">
-          {/* Logo */}
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">V</span>
+        <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row md:items-center md:gap-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+              <span className="font-bold text-sm">V</span>
             </div>
-            <span className="font-semibold text-lg">VNetPlay</span>
+            <div className="min-w-0">
+              <p className="text-base font-semibold leading-none">VNetPlay</p>
+              <p className="mt-1 text-xs text-muted-foreground">虚拟局域网联机工作台</p>
+            </div>
           </div>
-          
-          {/* 标签页导航 */}
-          <nav className="tab-nav">
+
+          <nav className="tab-nav w-full md:w-auto" aria-label="主导航">
             {navItems.map((item) => (
               <button
                 key={item.key}
@@ -76,13 +76,11 @@ export function Header({
             ))}
           </nav>
         </div>
-        
-        {/* 右侧：主题切换 + 用户头像 */}
-        <div className="flex items-center gap-3">
-          {/* 主题切换 */}
+
+        <div className="flex w-full items-center justify-between md:w-auto md:justify-end gap-3">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-9 w-9">
+              <Button variant="ghost" size="icon" className="h-10 w-10 rounded-2xl border border-border/60 bg-card/75">
                 {themeIcons[theme]}
               </Button>
             </DropdownMenuTrigger>
@@ -102,14 +100,19 @@ export function Header({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          
-          {/* 用户头像 */}
-          <Avatar className="h-8 w-8 cursor-pointer">
-            <AvatarImage src={profile.qqAvatar} alt={profile.username} />
-            <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+
+          <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-border/60 bg-card/80 px-3 py-2 shadow-sm">
+            <div className="min-w-0 text-right">
+              <p className="truncate text-sm font-medium">{profile.username}</p>
+              <p className="truncate text-xs text-muted-foreground">{profile.machineLabel}</p>
+            </div>
+            <Avatar className="h-9 w-9 shrink-0 cursor-pointer border border-border/60">
+              <AvatarImage src={profile.qqAvatar} alt={profile.username} />
+              <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+          </div>
         </div>
       </div>
     </header>

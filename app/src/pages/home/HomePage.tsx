@@ -230,7 +230,7 @@ export function HomePage({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto max-w-4xl space-y-6">
       {/* 服务器配置 */}
       <Card>
         <CardHeader>
@@ -238,14 +238,14 @@ export function HomePage({
           <CardDescription>填写服务器地址以开始</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <Input
               placeholder="http://127.0.0.1:9080"
               value={serverBaseUrl}
               onChange={(e) => setServerBaseUrl(e.target.value)}
               className="flex-1"
             />
-            <Button onClick={() => void loadRooms()} disabled={loading}>
+            <Button onClick={() => void loadRooms()} disabled={loading} className="sm:min-w-28">
               <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
               读取
             </Button>
@@ -254,7 +254,7 @@ export function HomePage({
       </Card>
 
       {/* 操作选项卡 */}
-      <div className="flex gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <Button
           variant={activeTab === "create" ? "default" : "outline"}
           onClick={() => setActiveTab("create")}
@@ -312,7 +312,7 @@ export function HomePage({
       {activeTab === "join" && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Users className="w-4 h-4" />
@@ -339,8 +339,8 @@ export function HomePage({
                         : "border-border hover:bg-muted/50"
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{room.roomId}</span>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="font-medium break-words">{room.roomId}</span>
                       <Badge variant={room.requiresPassword ? "outline" : "secondary"} className="text-xs">
                         {room.requiresPassword ? "有密码" : "免密码"}
                       </Badge>

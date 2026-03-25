@@ -5,6 +5,6 @@ export type ServerHealth = {
   service: string;
 };
 
-export function fetchServerHealth(): Promise<ServerHealth> {
-  return getJson<ServerHealth>("/health");
+export function fetchServerHealth(baseUrl?: string): Promise<ServerHealth> {
+  return getJson<ServerHealth>("/health", { baseUrl });
 }

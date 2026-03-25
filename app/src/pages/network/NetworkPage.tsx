@@ -155,6 +155,11 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
   const recentEvents = events.slice(0, 8);
   const serverHistoryEvents = useMemo(() => mapActionHistoryToEvents(actionHistory.slice(0, 8)), [actionHistory]);
   const joinedRoom = hasJoinedRoom(connectionContext);
+  const activeServerBaseUrl = connectionContext.serverBaseUrl || settings.serverBaseUrl;
+
+  function resolveRoomScope(contextSnapshot: ConnectionContext = connectionContext): string | undefined {
+    return hasJoinedRoom(contextSnapshot) ? contextSnapshot.roomId : undefined;
+  }
 
   const stats = [
     { label: "Edge", value: runtimeLabel, meta: `PID ${inspect.lastPid ?? "n/a"}` },
@@ -167,13 +172,13 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     setEvents(appendRuntimeEvent(input));
   }
 
-  async function refreshStatus() {
-    const nextStatus = await fetchNetworkStatus();
+  async function refreshStatus(serverBaseUrl = activeServerBaseUrl, roomId = resolveRoomScope()) {
+    const nextStatus = await fetchNetworkStatus(serverBaseUrl, roomId);
     setStatus(nextStatus);
     return nextStatus;
   }
 
-  async function syncActionToServer(action: string, result: DesktopCommandResult, source: string, roomId: string) {
+  async function syncActionToServer(action: string, result: DesktopCommandResult, source: string, roomId: string, serverBaseUrl = activeServerBaseUrl) {
     try {
       const recentAction = await syncRecentAction({
         action,
@@ -183,14 +188,14 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
         success: result.ok,
         source,
         pid: result.pid ?? null,
-      });
+      }, serverBaseUrl);
 
       setStatus((current) => ({
         ...current,
         recentAction,
       }));
     } catch {
-      await refreshStatus();
+      await refreshStatus(serverBaseUrl, roomId);
     }
   }
 
@@ -210,7 +215,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       joinedRoom: nextJoinedRoom,
       roomId: nextRoomId,
       username: profile.username,
-      serverBaseUrl: settings.serverBaseUrl,
+      serverBaseUrl: contextSnapshot.serverBaseUrl || activeServerBaseUrl,
       success: running,
       detail: result.detail,
       pid: snapshot.pidAlive ? (result.pid ?? snapshot.lastPid ?? null) : null,
@@ -224,10 +229,11 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     source: ConnectionContext["source"] = "inspect",
     contextSnapshot: ConnectionContext = connectionContext,
   ) {
+    const roomScope = resolveRoomScope(contextSnapshot);
     const [nextStatus, nextInspect, nextHistory] = await Promise.all([
-      fetchNetworkStatus(),
+      fetchNetworkStatus(contextSnapshot.serverBaseUrl || activeServerBaseUrl, roomScope),
       inspectNetworkBridge(),
-      fetchRecentActionsHistory(),
+      fetchRecentActionsHistory(contextSnapshot.serverBaseUrl || activeServerBaseUrl, roomScope),
     ]);
 
     const nextSnapshot = nextInspect.inspect ?? idleInspect;
@@ -270,7 +276,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
 
   useEffect(() => {
     void refreshLiveSnapshot();
-  }, [settings.serverBaseUrl]);
+  }, [activeServerBaseUrl]);
 
   useLiveRefresh({
     enabled: true,
@@ -284,7 +290,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
   async function handleStartNetwork(trigger: "manual" | "auto" | "resume" = "manual", roomIdOverride?: string, serverBaseUrlOverride?: string) {
     autoConnectTriggeredRef.current = true;
     const targetRoomId = roomIdOverride ?? settings.defaultRoomName;
-    const targetServerBaseUrl = serverBaseUrlOverride ?? settings.serverBaseUrl;
+    const targetServerBaseUrl = serverBaseUrlOverride ?? activeServerBaseUrl;
     const result = await startNetworkBridge({
       roomId: targetRoomId,
       username: profile.username,
@@ -308,7 +314,13 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
     });
     setCommandResult(finalResult);
     setInspectResult(finalResult);
-    await syncActionToServer(trigger === "auto" ? "desktop-auto-start" : trigger === "resume" ? "desktop-resume-start" : "desktop-start", finalResult, trigger === "auto" ? "desktop-auto" : trigger === "resume" ? "desktop-resume" : "desktop-manual", targetRoomId);
+    await syncActionToServer(
+      trigger === "auto" ? "desktop-auto-start" : trigger === "resume" ? "desktop-resume-start" : "desktop-start",
+      finalResult,
+      trigger === "auto" ? "desktop-auto" : trigger === "resume" ? "desktop-resume" : "desktop-manual",
+      targetRoomId,
+      targetServerBaseUrl,
+    );
     const nextConnectionContext: ConnectionContext = {
       joinedRoom: true,
       roomId: targetRoomId,
@@ -346,7 +358,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       joinedRoom,
       roomId: joinedRoom ? connectionContext.roomId : "未连接",
       username: profile.username,
-      serverBaseUrl: settings.serverBaseUrl,
+      serverBaseUrl: activeServerBaseUrl,
       success: false,
       detail: result.detail,
       pid: null,
@@ -376,7 +388,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       joinedRoom,
       roomId: joinedRoom ? connectionContext.roomId : "未连接",
       username: profile.username,
-      serverBaseUrl: settings.serverBaseUrl,
+      serverBaseUrl: activeServerBaseUrl,
       success: running,
       detail: result.detail,
       pid: result.inspect?.pidAlive ? (result.pid ?? null) : null,
@@ -388,13 +400,13 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
   }
 
   useEffect(() => {
-    if (!settings.autoConnectOnLaunch || autoConnectTriggeredRef.current) {
+    if (!settings.autoConnectOnLaunch || autoConnectTriggeredRef.current || !joinedRoom) {
       return;
     }
 
     autoConnectTriggeredRef.current = true;
-    void handleStartNetwork("auto");
-  }, [settings.autoConnectOnLaunch, settings.defaultRoomName, settings.defaultCommunity, settings.supernodeAddress, profile.username]);
+    void handleStartNetwork("auto", connectionContext.roomId, activeServerBaseUrl);
+  }, [settings.autoConnectOnLaunch, settings.defaultCommunity, settings.supernodeAddress, profile.username, joinedRoom, connectionContext.roomId, activeServerBaseUrl]);
 
   useEffect(() => {
     if (!startRequest) {
@@ -410,13 +422,13 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
   return (
     <div className="space-y-6">
       {/* 状态概览 */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((item) => (
-          <Card key={item.label}>
+          <Card key={item.label} className="border-border/70 bg-card/90 shadow-sm">
             <CardContent className="pt-6">
-              <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">{item.label}</p>
-              <p className="text-2xl font-semibold mb-1">{item.value}</p>
-              <p className="text-sm text-gray-500">{item.meta}</p>
+              <p className="mb-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">{item.label}</p>
+              <p className="mb-1 break-words text-2xl font-semibold">{item.value}</p>
+              <p className="text-sm text-muted-foreground break-words">{item.meta}</p>
             </CardContent>
           </Card>
         ))}
@@ -425,19 +437,19 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       {/* 控制面板 */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <CardTitle>控制台</CardTitle>
               <CardDescription>启动、停止、检查网络连接</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <StatusPill tone={runtimeTone} text={runtimeLabel} />
-              <span className="text-sm text-gray-500">轮询 5s · {liveUpdatedAt}</span>
+              <span>轮询 5s · {liveUpdatedAt}</span>
             </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Button onClick={() => handleStartNetwork("manual")}>
               <Play className="w-4 h-4 mr-2" />
               启动
@@ -452,36 +464,36 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <div className="key-value-item">
-              <span className="text-sm text-gray-500">用户</span>
-              <span className="text-sm font-medium">{profile.username}</span>
+              <span>用户</span>
+              <span>{profile.username}</span>
             </div>
             <div className="key-value-item">
-              <span className="text-sm text-gray-500">房间</span>
-              <span className="text-sm font-medium">{settings.defaultRoomName}</span>
+              <span>房间</span>
+              <span>{joinedRoom ? connectionContext.roomId : settings.defaultRoomName}</span>
             </div>
             <div className="key-value-item">
-              <span className="text-sm text-gray-500">群组</span>
-              <span className="text-sm font-medium">{settings.defaultCommunity}</span>
+              <span>群组</span>
+              <span>{settings.defaultCommunity}</span>
             </div>
             <div className="key-value-item">
-              <span className="text-sm text-gray-500">节点</span>
-              <span className="text-sm font-medium">{settings.supernodeAddress}</span>
+              <span>节点</span>
+              <span>{settings.supernodeAddress}</span>
             </div>
             <div className="key-value-item">
-              <span className="text-sm text-gray-500">自动</span>
-              <span className="text-sm font-medium">{settings.autoConnectOnLaunch ? "开" : "关"}</span>
+              <span>自动</span>
+              <span>{settings.autoConnectOnLaunch ? "开" : "关"}</span>
             </div>
             <div className="key-value-item">
-              <span className="text-sm text-gray-500">服务端</span>
-              <span className="text-sm font-medium truncate">{settings.serverBaseUrl || "未填"}</span>
+              <span>服务端</span>
+              <span>{activeServerBaseUrl || "未填"}</span>
             </div>
           </div>
 
-          <div className="p-3 bg-gray-100 rounded-lg">
-            <p className="text-sm text-gray-600">{commandResult.detail}</p>
-            <p className="text-xs text-gray-500 mt-1">
+          <div className="rounded-2xl border border-border/60 bg-muted/40 p-4">
+            <p className="text-sm leading-6 text-foreground">{commandResult.detail}</p>
+            <p className="mt-2 text-xs text-muted-foreground">
               状态: {commandResult.ok ? "success" : "error"} | PID: {commandResult.pid ?? "n/a"} | 存活: {inspect.pidAlive ? "alive" : "idle/stale"}
             </p>
           </div>
@@ -489,7 +501,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       </Card>
 
       {/* 本机和服务端信息 */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -533,7 +545,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       </div>
 
       {/* 事件时间线 */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>服务端历史</CardTitle>

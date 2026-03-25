@@ -66,6 +66,10 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-image:
+      radial-gradient(circle at top left, hsl(var(--primary) / 0.08), transparent 28rem),
+      radial-gradient(circle at top right, hsl(var(--primary) / 0.05), transparent 24rem);
+    background-attachment: fixed;
   }
   
   button,
@@ -97,7 +101,7 @@
   }
 
   .header-inner {
-    @apply flex h-16 items-center justify-between px-6 max-w-4xl mx-auto;
+    @apply flex w-full max-w-6xl flex-col gap-3 px-6 py-4 mx-auto md:flex-row md:items-center md:justify-between;
   }
 
   /* 主内容区域 */
@@ -106,20 +110,28 @@
   }
 
   .main-content-inner {
-    @apply max-w-2xl mx-auto space-y-8;
+    @apply w-full max-w-6xl mx-auto space-y-8;
+  }
+
+  .main-content-inner--compact {
+    @apply max-w-4xl;
+  }
+
+  .main-content-inner--guide {
+    @apply max-w-5xl;
   }
 
   /* 标签页导航 */
   .tab-nav {
-    @apply inline-flex items-center gap-1 rounded-lg bg-muted p-1 text-muted-foreground;
+    @apply inline-flex max-w-full items-center gap-1 rounded-2xl border border-border/70 bg-card/85 p-1 text-muted-foreground shadow-sm overflow-x-auto scrollbar-hide;
   }
 
   .tab-nav-item {
-    @apply inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
+    @apply inline-flex items-center justify-center whitespace-nowrap rounded-xl px-3 py-2 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50;
   }
 
   .tab-nav-item.active {
-    @apply bg-background text-foreground shadow-sm;
+    @apply bg-background text-foreground shadow-sm border border-border/60;
   }
 
   /* 卡片样式 */
@@ -150,7 +162,7 @@
 
   /* 页面网格布局 */
   .page-grid {
-    @apply grid gap-4;
+    @apply grid gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-4;
   }
 
   .page-grid-2 {
@@ -221,6 +233,62 @@
   .empty-state-description {
     @apply text-sm text-muted-foreground max-w-sm;
   }
+
+  .key-value-grid {
+    @apply grid gap-3 grid-cols-1 sm:grid-cols-2;
+  }
+
+  .key-value-item {
+    @apply flex flex-col gap-1 rounded-xl border border-border/60 bg-muted/30 px-4 py-3 text-sm shadow-sm;
+  }
+
+  .key-value-item > span:first-child {
+    @apply text-xs uppercase tracking-wide text-muted-foreground;
+  }
+
+  .key-value-item > span:last-child {
+    @apply break-words font-medium text-foreground;
+  }
+
+  .room-card {
+    @apply rounded-xl border border-border/60 bg-card/90 p-4 shadow-sm transition-colors;
+  }
+
+  .room-card.connected {
+    @apply border-primary/50 bg-primary/5;
+  }
+
+  .event-item {
+    @apply rounded-xl border border-border/70 bg-card/85 px-4 py-3 shadow-sm;
+  }
+
+  .event-item.online {
+    @apply border-emerald-500/25 bg-emerald-500/5;
+  }
+
+  .event-item.warning {
+    @apply border-amber-500/25 bg-amber-500/5;
+  }
+
+  .event-item.idle {
+    @apply border-border/70 bg-card/85;
+  }
+
+  .guide-shell {
+    @apply space-y-8;
+  }
+
+  .guide-hero {
+    @apply relative overflow-hidden rounded-3xl border border-border/70 bg-card/90 px-6 py-8 shadow-sm md:px-8;
+  }
+
+  .guide-platform-switch {
+    @apply inline-flex max-w-full gap-2 overflow-x-auto rounded-2xl border border-border/70 bg-card/85 p-1.5 shadow-sm scrollbar-hide;
+  }
+
+  .guide-code-block {
+    @apply overflow-x-auto rounded-2xl border border-border/70 bg-slate-950 px-4 py-3 text-sm leading-6 text-slate-100 shadow-inner;
+  }
 }
 
 /* 滚动条样式 */
@@ -247,5 +315,9 @@
 
   .header-inner {
     @apply px-4;
+  }
+
+  .key-value-item {
+    @apply px-3 py-2.5;
   }
 }

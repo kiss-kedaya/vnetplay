@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 
 use axum::{
-    extract::State,
+    extract::{Query, State},
     http::StatusCode,
     routing::{get, post},
     Json, Router,
 };
-use chrono::DateTime;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::models::{AppState, RecentAction};
@@ -77,6 +77,24 @@ struct LeaveRoomResponse {
     members: usize,
 }
 
+#[derive(Serialize)]
+struct RoomMemberDetail {
+    client_id: String,
+    username: String,
+    is_host: bool,
+    presence: String,
+    last_action: String,
+    last_seen_at: String,
+    detail: String,
+}
+
+#[derive(Serialize)]
+struct RoomResponse {
+    #[serde(flatten)]
+    room: RoomSummary,
+    member_details: Vec<RoomMemberDetail>,
+}
+
 #[derive(Deserialize)]
 struct CreateRoomRequest {
     room_id: String,
@@ -113,6 +131,136 @@ struct SyncRecentActionRequest {
     pid: Option<u32>,
 }
 
+#[derive(Deserialize)]
+struct RoomScopedQuery {
+    room_id: Option<String>,
+}
+
+fn normalized_room_scope(query: &RoomScopedQuery) -> Option<&str> {
+    query
+        .room_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|room_id| !room_id.is_empty())
+}
+
+fn fallback_recent_action(room_id: Option<&str>) -> RecentAction {
+    match room_id {
+        Some(room_id) => RecentAction {
+            action: "idle".to_string(),
+            room_id: room_id.to_string(),
+            username: "player".to_string(),
+            detail: format!("尚未收到房间 {} 的最近动作", room_id),
+            success: true,
+            updated_at: "--".to_string(),
+            source: "server".to_string(),
+            pid: None,
+        },
+        None => RecentAction::idle(),
+    }
+}
+
+fn latest_recent_action_for_room(items: &[RecentAction], room_id: Option<&str>) -> RecentAction {
+    match room_id {
+        Some(room_id) => items
+            .iter()
+            .find(|item| item.room_id == room_id)
+            .cloned()
+            .unwrap_or_else(|| fallback_recent_action(Some(room_id))),
+        None => items
+            .first()
+            .cloned()
+            .unwrap_or_else(RecentAction::idle),
+    }
+}
+
+fn recent_action_age_seconds(action: &RecentAction) -> Option<i64> {
+    DateTime::parse_from_rfc3339(&action.updated_at)
+        .ok()
+        .map(|timestamp| (Utc::now() - timestamp.with_timezone(&Utc)).num_seconds().max(0))
+}
+
+fn build_room_member_detail(
+    room: &RoomSummary,
+    username: &str,
+    client_id: &str,
+    recent_actions: &[RecentAction],
+) -> RoomMemberDetail {
+    let latest_action = recent_actions.iter().find(|item| {
+        item.room_id == room.room_id && (item.username == username || item.username == client_id)
+    });
+
+    let (presence, last_action, last_seen_at, detail) = match latest_action {
+        Some(action) => {
+            let age = recent_action_age_seconds(action).unwrap_or(i64::MAX);
+            let presence = if action.source.starts_with("desktop")
+                && !action.action.contains("stop")
+                && age <= HEARTBEAT_TTL_SECONDS
+            {
+                "online"
+            } else if matches!(action.action.as_str(), "room-created" | "room-joined") && age <= 1800 {
+                "joined"
+            } else if age <= 7200 {
+                "recent"
+            } else {
+                "offline"
+            };
+
+            let detail = match presence {
+                "online" => format!("最近一次动作是 {}，当前视为在线", action.action),
+                "joined" => format!("最近一次动作是 {}，已加入房间但未确认网络在线", action.action),
+                "recent" => format!("最近一次动作是 {}，但已超过实时在线窗口", action.action),
+                _ => format!("最近一次动作是 {}，当前无在线迹象", action.action),
+            };
+
+            (
+                presence.to_string(),
+                action.action.clone(),
+                action.updated_at.clone(),
+                detail,
+            )
+        }
+        None => (
+            "joined".to_string(),
+            "room-snapshot".to_string(),
+            room.last_active_at.clone(),
+            "已在房间列表中登记，但尚未收到该成员的运行态回写".to_string(),
+        ),
+    };
+
+    RoomMemberDetail {
+        client_id: client_id.to_string(),
+        username: username.to_string(),
+        is_host: room.host_id == client_id || room.host == username,
+        presence,
+        last_action,
+        last_seen_at,
+        detail,
+    }
+}
+
+fn build_room_response(room: RoomSummary, recent_actions: &[RecentAction]) -> RoomResponse {
+    let member_count = room.participants.len().max(room.participant_ids.len());
+    let member_details = (0..member_count)
+        .map(|index| {
+            let username = room
+                .participants
+                .get(index)
+                .cloned()
+                .unwrap_or_else(|| room.host.clone());
+            let client_id = room
+                .participant_ids
+                .get(index)
+                .cloned()
+                .unwrap_or_else(|| format!("{}-{}", room.host_id, index));
+
+            build_room_member_detail(&room, &username, &client_id, recent_actions)
+        })
+        .collect();
+
+    RoomResponse { room, member_details }
+}
+
 async fn health() -> Json<HealthResponse> {
     Json(HealthResponse {
         status: "ok",
@@ -126,7 +274,7 @@ async fn dashboard_summary(State(state): State<AppState>) -> Json<DashboardSumma
     let latest_heartbeat = latest_heartbeat(&heartbeats);
 
     let active_room = rooms.first().cloned().unwrap_or(RoomSummary::new(
-        "empty-room".to_string(),
+        "未连接".to_string(),
         "Unknown".to_string(),
         "LAN Overlay".to_string(),
         "system".to_string(),
@@ -135,30 +283,54 @@ async fn dashboard_summary(State(state): State<AppState>) -> Json<DashboardSumma
 
     let overlay_ip = latest_heartbeat
         .map(|item| item.overlay_ip.clone())
-        .unwrap_or_else(|| "10.24.8.12".to_string());
+        .unwrap_or_else(|| "--".to_string());
 
-    let latency_ms = latest_heartbeat.map(|item| item.latency_ms).unwrap_or(32);
+    let latency = latest_heartbeat
+        .map(|item| format!("{} ms", item.latency_ms))
+        .unwrap_or_else(|| "--".to_string());
 
     Json(DashboardSummary {
         overlay_ip,
-        relay: "Tokyo Relay / VPS".to_string(),
-        latency: format!("{} ms", latency_ms),
-        packet_loss: "0.2%".to_string(),
+        relay: if latest_heartbeat.is_some() {
+            "Tokyo Relay / VPS".to_string()
+        } else {
+            "服务端未连接".to_string()
+        },
+        latency,
+        packet_loss: if latest_heartbeat.is_some() {
+            "0.2%".to_string()
+        } else {
+            "--".to_string()
+        },
         active_room: active_room.room_id,
         room_members: active_room.members as u32,
         supported_games: ["Minecraft", "Slay the Spire 2"],
     })
 }
 
-async fn rooms(State(state): State<AppState>) -> Json<Vec<RoomSummary>> {
+async fn rooms(State(state): State<AppState>) -> Json<Vec<RoomResponse>> {
     let rooms = state.rooms.lock().expect("rooms mutex poisoned");
-    Json(rooms.clone())
+    let room_items = rooms.clone();
+    drop(rooms);
+
+    let recent_actions = state
+        .recent_actions
+        .lock()
+        .expect("recent_actions mutex poisoned")
+        .clone();
+
+    Json(
+        room_items
+            .into_iter()
+            .map(|room| build_room_response(room, &recent_actions))
+            .collect(),
+    )
 }
 
 async fn create_room(
     State(state): State<AppState>,
     Json(payload): Json<CreateRoomRequest>,
-) -> Result<Json<RoomSummary>, (StatusCode, String)> {
+) -> Result<Json<RoomResponse>, (StatusCode, String)> {
     let room_id = payload.room_id.trim();
     let username = payload.username.trim();
     let client_id = payload.client_id.trim();
@@ -200,13 +372,19 @@ async fn create_room(
     );
     state.persist();
 
-    Ok(Json(room))
+    let recent_actions = state
+        .recent_actions
+        .lock()
+        .expect("recent_actions mutex poisoned")
+        .clone();
+
+    Ok(Json(build_room_response(room, &recent_actions)))
 }
 
 async fn join_room(
     State(state): State<AppState>,
     Json(payload): Json<JoinRoomRequest>,
-) -> Result<Json<RoomSummary>, (StatusCode, String)> {
+) -> Result<Json<RoomResponse>, (StatusCode, String)> {
     let room_id = payload.room_id.trim();
     let username = payload.username.trim();
     let client_id = payload.client_id.trim();
@@ -243,7 +421,12 @@ async fn join_room(
             .with_pid(None),
         );
         state.persist();
-        return Ok(Json(updated));
+        let recent_actions = state
+            .recent_actions
+            .lock()
+            .expect("recent_actions mutex poisoned")
+            .clone();
+        return Ok(Json(build_room_response(updated, &recent_actions)));
     }
 
     Err((StatusCode::NOT_FOUND, "room not found".to_string()))
@@ -331,29 +514,45 @@ async fn leave_room(
     }))
 }
 
-async fn network_status(State(state): State<AppState>) -> Json<NetworkStatus> {
+async fn network_status(
+    State(state): State<AppState>,
+    Query(query): Query<RoomScopedQuery>,
+) -> Json<NetworkStatus> {
     let heartbeats = state.heartbeats.lock().expect("heartbeats mutex poisoned");
     let latest_heartbeat = latest_heartbeat(&heartbeats);
-    let recent_action = state
-        .recent_action
-        .lock()
-        .expect("recent_action mutex poisoned")
-        .clone();
+    let room_scope = normalized_room_scope(&query);
+    let recent_action = {
+        let recent_actions = state
+            .recent_actions
+            .lock()
+            .expect("recent_actions mutex poisoned");
+        latest_recent_action_for_room(&recent_actions, room_scope)
+    };
     let overlay_ip = latest_heartbeat
         .map(|item| item.overlay_ip.clone())
-        .unwrap_or_else(|| "10.24.8.12".to_string());
-    let latency_ms = latest_heartbeat.map(|item| item.latency_ms).unwrap_or(32);
+        .unwrap_or_else(|| "--".to_string());
+    let latency = latest_heartbeat
+        .map(|item| format!("{} ms", item.latency_ms))
+        .unwrap_or_else(|| "--".to_string());
 
     Json(NetworkStatus {
         overlay_ip,
-        relay: "Tokyo Relay / VPS".to_string(),
-        route_mode: "relay-preferred",
+        relay: if latest_heartbeat.is_some() {
+            "Tokyo Relay / VPS".to_string()
+        } else {
+            "服务端未连接".to_string()
+        },
+        route_mode: if latest_heartbeat.is_some() {
+            "relay-preferred"
+        } else {
+            "unknown"
+        },
         edge_state: if latest_heartbeat.is_none() {
             "idle"
         } else {
             "running"
         },
-        latency: format!("{} ms", latency_ms),
+        latency,
         community: state.profile.community.clone(),
         supernode: state.profile.supernode.clone(),
         secret_masked: state.profile.secret_masked.clone(),
@@ -386,12 +585,19 @@ async fn sync_recent_action(
     Ok(Json(recent_action))
 }
 
-async fn recent_actions(State(state): State<AppState>) -> Json<RecentActionList> {
+async fn recent_actions(
+    State(state): State<AppState>,
+    Query(query): Query<RoomScopedQuery>,
+) -> Json<RecentActionList> {
+    let room_scope = normalized_room_scope(&query);
     let items = state
         .recent_actions
         .lock()
         .expect("recent_actions mutex poisoned")
-        .clone();
+        .iter()
+        .filter(|item| room_scope.is_none_or(|room_id| item.room_id == room_id))
+        .cloned()
+        .collect();
 
     Json(RecentActionList { items })
 }

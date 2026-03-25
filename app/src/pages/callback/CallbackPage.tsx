@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
-import { handleQQCallback, saveQQLogin, type QQLoginResult } from "@/lib/auth/qqLogin";
+import { handleQQCallback, notifyQQLoginSuccess, saveQQLogin, type QQLoginResult } from "@/lib/auth/qqLogin";
 
 type CallbackStatus = "loading" | "success" | "error";
 
@@ -34,7 +34,20 @@ async function closeLoginWindow() {
     return true;
   }
 
+  if (typeof window !== "undefined") {
+    window.close();
+    return window.closed;
+  }
+
   return false;
+}
+
+function shouldReturnToMainAppWindow(): boolean {
+  if (isTauriEnv()) {
+    return true;
+  }
+
+  return typeof window !== "undefined" && !!window.opener && !window.opener.closed;
 }
 
 export function CallbackPage() {
@@ -59,6 +72,7 @@ export function CallbackPage() {
           saveQQLogin(result);
           setNickname(result.nickname || "");
           setStatus("success");
+          const syncPayload = notifyQQLoginSuccess(result);
 
           const windowInfo = await getTauriWindowInfo();
 
@@ -70,17 +84,15 @@ export function CallbackPage() {
 
                 if (tauri?.event?.emitTo) {
                   await tauri.event.emitTo("main", "qq-login-success", {
+                    ...(syncPayload ?? result),
                     success: true,
-                    nickname: result.nickname,
-                    avatar: result.avatar,
-                    qqUid: result.qqUid,
                   });
-                } else if (tauri?.event?.emit) {
+                }
+
+                if (tauri?.event?.emit) {
                   await tauri.event.emit("qq-login-success", {
+                    ...(syncPayload ?? result),
                     success: true,
-                    nickname: result.nickname,
-                    avatar: result.avatar,
-                    qqUid: result.qqUid,
                   });
                 }
 
@@ -93,6 +105,13 @@ export function CallbackPage() {
                   console.error("[QQ Callback] Force close failed:", e);
                 }
               }
+            }, 1500);
+            return;
+          }
+
+          if (shouldReturnToMainAppWindow()) {
+            setTimeout(async () => {
+              await closeLoginWindow();
             }, 1500);
             return;
           }
@@ -129,6 +148,9 @@ export function CallbackPage() {
             <h2 className="text-lg font-medium">登录成功！</h2>
             <p className="text-sm text-muted-foreground">
               欢迎，{nickname}！
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {shouldReturnToMainAppWindow() ? "正在同步主窗口并关闭当前登录页..." : "正在返回主界面..."}
             </p>
           </>
         )}

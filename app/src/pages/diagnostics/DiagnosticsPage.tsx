@@ -100,11 +100,14 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
   const serverHealthy = serverHealth?.status === "ok";
   const inspect = inspectResult.inspect ?? emptyInspect;
   const desktopUnavailable = inspectResult.detail.toLowerCase().includes("desktop runtime unavailable");
+  const activeServerBaseUrl = connectionContext.serverBaseUrl || settings.serverBaseUrl;
+  const activeRoomScope = hasJoinedRoom(connectionContext) ? connectionContext.roomId : undefined;
 
   const diagnostics = useMemo(
     () => buildDiagnosticsSummary({
       settings,
       connectionContext,
+      activeServerBaseUrl,
       rooms,
       serverHealthy,
       serverError,
@@ -112,7 +115,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
       inspectResult,
       networkStatus,
     }),
-    [settings, connectionContext, rooms, serverHealthy, serverError, roomsError, inspectResult, networkStatus],
+    [settings, connectionContext, activeServerBaseUrl, rooms, serverHealthy, serverError, roomsError, inspectResult, networkStatus],
   );
   const serverHistoryEvents = useMemo(() => mapActionHistoryToEvents(actionHistory.slice(0, 8)), [actionHistory]);
 
@@ -124,11 +127,11 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
     }
 
     const [healthResult, dashboardResult, roomsResult, networkResult, historyResult, inspectResultValue] = await Promise.allSettled([
-      fetchServerHealth(),
-      fetchDashboardSummary(),
-      fetchRooms(),
-      fetchNetworkStatus(),
-      fetchRecentActionsHistory(),
+      fetchServerHealth(activeServerBaseUrl),
+      fetchDashboardSummary(activeServerBaseUrl),
+      fetchRooms(activeServerBaseUrl),
+      fetchNetworkStatus(activeServerBaseUrl, activeRoomScope),
+      fetchRecentActionsHistory(activeServerBaseUrl, activeRoomScope),
       inspectNetworkBridge(),
     ]);
 
@@ -165,7 +168,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
 
     setEvents(resolveRuntimeEvents());
 
-    if (!settings.serverBaseUrl.trim()) {
+    if (!activeServerBaseUrl.trim()) {
       setLiveTone("idle");
       setLiveLabel("待配置");
     } else if (nextServerHealthy) {
@@ -185,7 +188,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
 
   useEffect(() => {
     void refreshDiagnostics();
-  }, [settings.serverBaseUrl]);
+  }, [activeServerBaseUrl, activeRoomScope]);
 
   useLiveRefresh({
     enabled: true,
@@ -199,10 +202,10 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
   return (
     <div className="space-y-6">
       {/* 刷新按钮和状态 */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
           <StatusPill tone={liveTone} text={liveLabel} />
-          <span className="text-sm text-gray-500">刷新: {refreshedAt} · {profile.username} · {profile.machineLabel}</span>
+          <span className="text-sm text-muted-foreground">刷新: {refreshedAt} · {profile.username} · {profile.machineLabel}</span>
         </div>
         <Button
           variant="outline"
@@ -228,15 +231,15 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
       <div className="page-grid">
         <InfoCard
           title="服务器"
-          value={!settings.serverBaseUrl ? "未配置" : serverHealthy ? "在线" : "不可达"}
+          value={!activeServerBaseUrl ? "未配置" : serverHealthy ? "在线" : "不可达"}
           detail={
-            !settings.serverBaseUrl
+            !activeServerBaseUrl
               ? "先填服务器地址。"
               : serverHealthy
-                ? `${serverHealth?.service ?? "vnetplay-server"} · ${settings.serverBaseUrl}`
+                ? `${serverHealth?.service ?? "vnetplay-server"} · ${activeServerBaseUrl}`
                 : serverError || "健康检查失败。"
           }
-          footer={<StatusPill tone={!settings.serverBaseUrl || !serverHealthy ? "warning" : "online"} text={!settings.serverBaseUrl ? "待配置" : serverHealthy ? "正常" : "失败"} />}
+          footer={<StatusPill tone={!activeServerBaseUrl || !serverHealthy ? "warning" : "online"} text={!activeServerBaseUrl ? "待配置" : serverHealthy ? "正常" : "失败"} />}
         />
         <InfoCard
           title="桌面 runtime"
@@ -265,14 +268,14 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
       </div>
 
       {/* 检查列表和问题列表 */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>检查项目</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {diagnostics.checks.map((item) => (
-              <div key={item.label} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={item.label} className="flex flex-col gap-2 rounded-xl border border-border/60 bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-sm font-medium">{item.label}</span>
                 <StatusPill tone={item.tone} text={item.value} />
               </div>
@@ -288,19 +291,19 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
             {diagnostics.issues.length > 0 ? (
               <div className="space-y-2">
                 {diagnostics.issues.map((item) => (
-                  <div key={`${item.title}-${item.detail}`} className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <div className="flex items-center justify-between mb-1">
+                  <div key={`${item.title}-${item.detail}`} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+                    <div className="mb-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                       <span className="text-sm font-medium">{item.title}</span>
                       <Badge variant="outline" className="text-xs">{item.tone === "idle" ? "可稍后" : "优先处理"}</Badge>
                     </div>
-                    <p className="text-xs text-gray-600">{item.detail}</p>
+                    <p className="text-xs leading-5 text-muted-foreground">{item.detail}</p>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <CheckCircle2 className="w-12 h-12 text-green-500 mb-3" />
-                <p className="text-sm text-gray-500">当前无明显阻塞，可回联机页。</p>
+                <p className="text-sm text-muted-foreground">当前无明显阻塞，可回联机页。</p>
               </div>
             )}
           </CardContent>
@@ -308,7 +311,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
       </div>
 
       {/* 服务端和本机详情 */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>服务端详情</CardTitle>
@@ -324,14 +327,14 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
                   <div className="key-value-item"><span>Latency</span><span>{networkStatus.latency}</span></div>
                   <div className="key-value-item"><span>edge 状态</span><span>{networkStatus.edgeState}</span></div>
                 </div>
-                <div className="p-3 bg-gray-900 rounded-lg text-gray-100 text-xs font-mono">
+                <div className="guide-code-block text-xs">
                   {networkStatus.recentAction.detail}
                 </div>
               </>
             ) : (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <XCircle className="w-12 h-12 text-gray-300 mb-3" />
-                <p className="text-sm text-gray-500">{serverError || "服务端未连通。"}</p>
+                <p className="text-sm text-muted-foreground">{serverError || "服务端未连通。"}</p>
               </div>
             )}
           </CardContent>
@@ -350,7 +353,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
               <div className="key-value-item"><span>edge 状态</span><span>{inspect.edgeState}</span></div>
               <div className="key-value-item"><span>PID 存活</span><span>{inspect.pidAlive ? "alive" : "idle"}</span></div>
             </div>
-            <div className="p-3 bg-gray-900 rounded-lg text-gray-100 text-xs font-mono">
+            <div className="guide-code-block text-xs">
               {inspect.commandPreview}
             </div>
           </CardContent>
@@ -365,7 +368,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
             <CardDescription>当前服务器上的房间</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
               {rooms.slice(0, 6).map((room) => {
                 const connected = room.roomId === connectionContext.roomId && hasJoinedRoom(connectionContext);
                 const isDefaultRoom = room.roomId === settings.defaultRoomName;
@@ -387,7 +390,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
                         {connected && <Badge className="text-xs bg-green-600">当前</Badge>}
                       </div>
                     </div>
-                    <div className="text-sm text-gray-500">
+                    <div className="text-sm text-muted-foreground">
                       {room.members} 人 · 房主：{room.host}
                     </div>
                   </div>
@@ -399,7 +402,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
       )}
 
       {/* 事件时间线 */}
-      <div className="grid grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>服务端历史</CardTitle>

@@ -62,6 +62,37 @@ pub fn get_system_identity() -> SystemIdentityResponse {
 
 pub fn start_network(state: &mut DesktopState, payload: StartNetworkRequest) -> CommandResponse {
     state.last_command = "start-network".to_string();
+
+    let mut replaced_detail = None;
+
+    if let Some(existing_pid) = state.last_pid {
+        if is_edge_pid_alive(existing_pid) {
+            let stop_outcome = stop_edge(existing_pid);
+
+            if !stop_outcome.ok {
+                return CommandResponse {
+                    ok: false,
+                    detail: format!(
+                        "failed to replace existing n2n edge pid {} before restart: {}",
+                        existing_pid, stop_outcome.detail
+                    ),
+                    pid: Some(existing_pid),
+                    inspect: Some(build_inspect_snapshot(state)),
+                };
+            }
+
+            state.last_pid = None;
+            state.last_stopped_at = now_string();
+            replaced_detail = Some(format!("replaced existing n2n edge pid {}", existing_pid));
+        } else {
+            cleanup_stale_pid(state);
+            replaced_detail = Some(format!(
+                "cleaned stale n2n edge pid {} before restart",
+                existing_pid
+            ));
+        }
+    }
+
     state.active_room = payload.room_id.clone();
     state.current_username = payload.username.clone();
     state.current_community = payload.community.clone();
@@ -81,7 +112,9 @@ pub fn start_network(state: &mut DesktopState, payload: StartNetworkRequest) -> 
 
     CommandResponse {
         ok: outcome.ok,
-        detail: outcome.detail,
+        detail: replaced_detail
+            .map(|detail| format!("{}; {}", detail, outcome.detail))
+            .unwrap_or(outcome.detail),
         pid: outcome.pid,
         inspect: Some(build_inspect_snapshot(state)),
     }

@@ -11,13 +11,13 @@ export type DashboardSummary = {
 };
 
 const fallbackSummary: DashboardSummary = {
-  overlayIp: "10.24.8.12",
-  relay: "Tokyo Relay / VPS",
-  latency: "32 ms",
-  packetLoss: "0.2%",
-  activeRoom: "sts2-night-run",
-  roomMembers: 3,
-  supportedGames: ["Minecraft", "Slay the Spire 2"],
+  overlayIp: "--",
+  relay: "服务端未连接",
+  latency: "--",
+  packetLoss: "--",
+  activeRoom: "未连接",
+  roomMembers: 0,
+  supportedGames: [],
 };
 
 function normalize(payload: Record<string, unknown>): DashboardSummary {
@@ -34,9 +34,9 @@ function normalize(payload: Record<string, unknown>): DashboardSummary {
   };
 }
 
-export async function fetchDashboardSummary(): Promise<DashboardSummary> {
+export async function fetchDashboardSummary(baseUrl?: string): Promise<DashboardSummary> {
   try {
-    const payload = await getJson<Record<string, unknown>>("/api/dashboard/summary");
+    const payload = await getJson<Record<string, unknown>>("/api/dashboard/summary", { baseUrl });
     return normalize(payload);
   } catch {
     return fallbackSummary;

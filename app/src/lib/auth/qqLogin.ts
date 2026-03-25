@@ -3,6 +3,7 @@ export type QQLoginResult = {
   nickname?: string;
   avatar?: string;
   qqUid?: string;
+  syncId?: string;
   error?: string;
 };
 
@@ -14,11 +15,22 @@ export type QQLoginState = {
 };
 
 const STORAGE_KEY = "vnetplay.qq-login";
+export const QQ_LOGIN_SYNC_STORAGE_KEY = "vnetplay.qq-login.sync";
+export const QQ_LOGIN_SYNC_CHANNEL = "vnetplay.qq-login.channel";
 
 type QQLoginRecord = {
   nickname: string;
   avatar: string;
   qqUid: string;
+  loggedAt: string;
+};
+
+export type QQLoginSyncPayload = {
+  success: true;
+  nickname: string;
+  avatar: string;
+  qqUid: string;
+  syncId: string;
   loggedAt: string;
 };
 
@@ -123,6 +135,82 @@ function readStoredQQLoginRecord(): QQLoginRecord | null {
   }
 }
 
+function buildQQLoginSyncPayload(result: QQLoginResult): QQLoginSyncPayload | null {
+  if (!result.success || !result.nickname || !result.qqUid) {
+    return null;
+  }
+
+  return {
+    success: true,
+    nickname: result.nickname,
+    avatar: result.avatar ?? "",
+    qqUid: result.qqUid,
+    syncId: result.syncId ?? `${Date.now()}-${result.qqUid}`,
+    loggedAt: new Date().toISOString(),
+  };
+}
+
+export function parseQQLoginSyncPayload(raw: string | null): QQLoginSyncPayload | null {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const data = JSON.parse(raw) as Partial<QQLoginSyncPayload>;
+    if (!data.success || !data.nickname || !data.qqUid || !data.syncId) {
+      return null;
+    }
+
+    return {
+      success: true,
+      nickname: String(data.nickname),
+      avatar: String(data.avatar ?? ""),
+      qqUid: String(data.qqUid),
+      syncId: String(data.syncId),
+      loggedAt: String(data.loggedAt ?? new Date().toISOString()),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function notifyQQLoginSuccess(result: QQLoginResult): QQLoginSyncPayload | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  const payload = buildQQLoginSyncPayload(result);
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    localStorage.setItem(QQ_LOGIN_SYNC_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore storage sync failures and continue with best-effort messaging.
+  }
+
+  if (typeof BroadcastChannel !== "undefined") {
+    try {
+      const channel = new BroadcastChannel(QQ_LOGIN_SYNC_CHANNEL);
+      channel.postMessage(payload);
+      channel.close();
+    } catch {
+      // Ignore broadcast failures; other sync channels still exist.
+    }
+  }
+
+  if (typeof window.opener !== "undefined" && window.opener && !window.opener.closed) {
+    try {
+      window.opener.postMessage({ type: "qq-login-success", payload }, window.location.origin);
+    } catch {
+      // Ignore opener messaging failures.
+    }
+  }
+
+  return payload;
+}
+
 export async function handleQQCallback(code: string): Promise<QQLoginResult> {
   try {
     const params = new URLSearchParams({
@@ -167,6 +255,7 @@ export async function handleQQCallback(code: string): Promise<QQLoginResult> {
         nickname,
         avatar,
         qqUid,
+        syncId: `${Date.now()}-${qqUid}`,
       };
     }
 

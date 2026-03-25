@@ -10,13 +10,13 @@ type InfoCardProps = {
 
 export function InfoCard({ title, value, detail, footer }: InfoCardProps) {
   return (
-    <Card>
+    <Card className="h-full border-border/70 bg-card/90 shadow-sm">
       <CardHeader className="pb-3">
-        <CardDescription className="text-xs uppercase tracking-wide">{title}</CardDescription>
-        <CardTitle className="text-2xl">{value}</CardTitle>
+        <CardDescription className="text-xs uppercase tracking-[0.24em] text-muted-foreground/80">{title}</CardDescription>
+        <CardTitle className="text-2xl md:text-3xl break-words">{value}</CardTitle>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-gray-500 mb-3">{detail}</p>
+      <CardContent className="space-y-3">
+        <p className="text-sm leading-6 text-muted-foreground">{detail}</p>
         {footer}
       </CardContent>
     </Card>

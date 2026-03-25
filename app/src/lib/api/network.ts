@@ -73,9 +73,20 @@ function mapRecentAction(payload: Record<string, unknown> | undefined): RecentAc
   };
 }
 
-export async function fetchNetworkStatus(baseUrl?: string): Promise<NetworkStatus> {
+function buildRoomScopedPath(path: string, roomId?: string): string {
+  const trimmedRoomId = roomId?.trim();
+
+  if (!trimmedRoomId) {
+    return path;
+  }
+
+  const query = new URLSearchParams({ room_id: trimmedRoomId });
+  return `${path}?${query.toString()}`;
+}
+
+export async function fetchNetworkStatus(baseUrl?: string, roomId?: string): Promise<NetworkStatus> {
   try {
-    const payload = await getJson<Record<string, unknown>>("/api/network/status", { baseUrl });
+    const payload = await getJson<Record<string, unknown>>(buildRoomScopedPath("/api/network/status", roomId), { baseUrl });
 
     return {
       overlayIp: String(payload.overlay_ip ?? fallbackStatus.overlayIp),
@@ -107,9 +118,9 @@ export async function syncRecentAction(payload: SyncRecentActionPayload, baseUrl
   return mapRecentAction(response);
 }
 
-export async function fetchRecentActionsHistory(baseUrl?: string): Promise<RecentAction[]> {
+export async function fetchRecentActionsHistory(baseUrl?: string, roomId?: string): Promise<RecentAction[]> {
   try {
-    const response = await getJson<RecentActionListResponse>("/api/network/actions", { baseUrl });
+    const response = await getJson<RecentActionListResponse>(buildRoomScopedPath("/api/network/actions", roomId), { baseUrl });
     return Array.isArray(response.items) ? response.items.map((item) => mapRecentAction(item)) : [];
   } catch {
     return [];

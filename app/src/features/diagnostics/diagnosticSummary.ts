@@ -30,6 +30,7 @@ export type DiagnosticsSummary = {
 type BuildDiagnosticsSummaryInput = {
   settings: AppSettings;
   connectionContext: ConnectionContext;
+  activeServerBaseUrl: string;
   rooms: RoomItem[];
   serverHealthy: boolean;
   serverError: string;
@@ -98,9 +99,13 @@ export function buildDiagnosticsSummary(input: BuildDiagnosticsSummaryInput): Di
   const desktopUnavailable = isDesktopUnavailable(input.inspectResult);
   const inspect = input.inspectResult.inspect;
   const syncState = buildSyncState(input.connectionContext, input.networkStatus, input.serverHealthy);
+  const activeServerBaseUrl = input.activeServerBaseUrl.trim();
+  const preferredRoomLabel = hasJoinedRoom(input.connectionContext)
+    ? input.connectionContext.roomId
+    : input.settings.defaultRoomName;
 
   const checks: DiagnosticsCheck[] = [
-    !input.settings.serverBaseUrl.trim()
+    !activeServerBaseUrl
       ? {
           label: "服务器地址",
           value: "未配置",
@@ -111,7 +116,7 @@ export function buildDiagnosticsSummary(input: BuildDiagnosticsSummaryInput): Di
         ? {
             label: "服务器连通性",
             value: "在线",
-            detail: `${input.settings.serverBaseUrl} 在线。`,
+            detail: `${activeServerBaseUrl} 在线。`,
             tone: "online",
           }
         : {
@@ -125,7 +130,7 @@ export function buildDiagnosticsSummary(input: BuildDiagnosticsSummaryInput): Di
         ? {
             label: "房间快照",
             value: `${input.rooms.length} 个房间`,
-            detail: `${input.settings.defaultRoomName} 可用。`,
+            detail: `${preferredRoomLabel} 可用。`,
             tone: "online",
           }
         : {
@@ -170,7 +175,7 @@ export function buildDiagnosticsSummary(input: BuildDiagnosticsSummaryInput): Di
 
   const issues: DiagnosticsIssue[] = [];
 
-  if (!input.settings.serverBaseUrl.trim()) {
+  if (!activeServerBaseUrl) {
     issues.push({
       title: "先补齐服务器地址",
       detail: "没有地址就只能看本地占位。",
@@ -178,10 +183,10 @@ export function buildDiagnosticsSummary(input: BuildDiagnosticsSummaryInput): Di
     });
   }
 
-  if (input.settings.serverBaseUrl.trim() && !input.serverHealthy) {
+  if (activeServerBaseUrl && !input.serverHealthy) {
     issues.push({
       title: "控制服务端当前不可达",
-      detail: input.serverError || `请确认 ${input.settings.serverBaseUrl} 是否已启动并监听正确端口。`,
+      detail: input.serverError || `请确认 ${activeServerBaseUrl} 是否已启动并监听正确端口。`,
       tone: "warning",
     });
   }
