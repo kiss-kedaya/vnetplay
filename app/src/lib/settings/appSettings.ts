@@ -1,5 +1,6 @@
 export type AppSettings = {
   serverBaseUrl: string;
+  serverAuthToken: string;
   defaultRoomName: string;
   defaultCommunity: string;
   supernodeAddress: string;
@@ -7,6 +8,7 @@ export type AppSettings = {
 };
 
 const serverBaseUrlKey = "vnetplay.settings.server-base-url";
+const serverAuthTokenKey = "vnetplay.settings.server-auth-token";
 const defaultRoomNameKey = "vnetplay.settings.default-room-name";
 const defaultCommunityKey = "vnetplay.settings.default-community";
 const supernodeAddressKey = "vnetplay.settings.supernode-address";
@@ -14,6 +16,7 @@ const autoConnectOnLaunchKey = "vnetplay.settings.auto-connect-on-launch";
 
 const defaultSettings: AppSettings = {
   serverBaseUrl: "",
+  serverAuthToken: "",
   defaultRoomName: "my-new-room",
   defaultCommunity: "vnetplay-room",
   supernodeAddress: "127.0.0.1:7777",
@@ -28,6 +31,11 @@ function normalizeServerBaseUrl(value: string | null | undefined): string {
 function normalizeRoomName(value: string | null | undefined): string {
   const normalized = value?.trim();
   return normalized && normalized.length > 0 ? normalized : defaultSettings.defaultRoomName;
+}
+
+function normalizeAuthToken(value: string | null | undefined): string {
+  const normalized = value?.trim();
+  return normalized ?? "";
 }
 
 function normalizeCommunity(value: string | null | undefined): string {
@@ -55,6 +63,7 @@ export function resolveAppSettings(): AppSettings {
 
   return {
     serverBaseUrl: normalizeServerBaseUrl(window.localStorage.getItem(serverBaseUrlKey)),
+    serverAuthToken: normalizeAuthToken(window.localStorage.getItem(serverAuthTokenKey)),
     defaultRoomName: normalizeRoomName(window.localStorage.getItem(defaultRoomNameKey)),
     defaultCommunity: normalizeCommunity(window.localStorage.getItem(defaultCommunityKey)),
     supernodeAddress: normalizeSupernode(window.localStorage.getItem(supernodeAddressKey)),
@@ -66,6 +75,7 @@ export function saveAppSettings(input: Partial<AppSettings>): AppSettings {
   const current = resolveAppSettings();
   const nextSettings: AppSettings = {
     serverBaseUrl: normalizeServerBaseUrl(input.serverBaseUrl ?? current.serverBaseUrl),
+    serverAuthToken: normalizeAuthToken(input.serverAuthToken ?? current.serverAuthToken),
     defaultRoomName: normalizeRoomName(input.defaultRoomName ?? current.defaultRoomName),
     defaultCommunity: normalizeCommunity(input.defaultCommunity ?? current.defaultCommunity),
     supernodeAddress: normalizeSupernode(input.supernodeAddress ?? current.supernodeAddress),
@@ -73,6 +83,7 @@ export function saveAppSettings(input: Partial<AppSettings>): AppSettings {
   };
 
   window.localStorage.setItem(serverBaseUrlKey, nextSettings.serverBaseUrl);
+  window.localStorage.setItem(serverAuthTokenKey, nextSettings.serverAuthToken);
   window.localStorage.setItem(defaultRoomNameKey, nextSettings.defaultRoomName);
   window.localStorage.setItem(defaultCommunityKey, nextSettings.defaultCommunity);
   window.localStorage.setItem(supernodeAddressKey, nextSettings.supernodeAddress);
@@ -82,4 +93,8 @@ export function saveAppSettings(input: Partial<AppSettings>): AppSettings {
 
 export function getApiBaseUrl(): string {
   return resolveAppSettings().serverBaseUrl;
+}
+
+export function getApiAuthToken(): string {
+  return resolveAppSettings().serverAuthToken;
 }

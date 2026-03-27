@@ -63,12 +63,22 @@ fn build_payload(state: &DesktopState, active: bool) -> Option<HeartbeatPayload>
 fn post_payload(
     client: &Client,
     server_base_url: &str,
+    server_auth_token: &str,
     payload: &HeartbeatPayload,
 ) -> Result<(), String> {
     let target = format!("{}/api/nodes/heartbeat", server_base_url);
-    client
-        .post(target)
-        .json(payload)
+    let mut request = client.post(target).json(payload);
+
+    if !server_auth_token.trim().is_empty() {
+        request = request
+            .header(
+                "Authorization",
+                format!("Bearer {}", server_auth_token.trim()),
+            )
+            .header("X-VNetPlay-Token", server_auth_token.trim());
+    }
+
+    request
         .send()
         .map_err(|error| error.to_string())?
         .error_for_status()
@@ -91,7 +101,12 @@ pub fn send_heartbeat_once(state: &DesktopState, active: bool) -> Result<(), Str
         .build()
         .map_err(|error| error.to_string())?;
 
-    post_payload(&client, &server_base_url, &payload)
+    post_payload(
+        &client,
+        &server_base_url,
+        &state.current_server_auth_token,
+        &payload,
+    )
 }
 
 pub fn spawn_heartbeat_loop(state: Arc<Mutex<DesktopState>>, generation: u64) {
@@ -133,7 +148,12 @@ pub fn spawn_heartbeat_loop(state: Arc<Mutex<DesktopState>>, generation: u64) {
                 break;
             };
 
-            let _ = post_payload(&client, &server_base_url, &payload);
+            let _ = post_payload(
+                &client,
+                &server_base_url,
+                &snapshot.current_server_auth_token,
+                &payload,
+            );
             thread::sleep(Duration::from_secs(HEARTBEAT_INTERVAL_SECONDS));
         }
     });

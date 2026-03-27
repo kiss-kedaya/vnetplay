@@ -20,6 +20,7 @@ import type { UserProfile } from "../../lib/profile/userProfile";
 import type { AppSettings } from "../../lib/settings/appSettings";
 import type { QQLoginState } from "../../lib/auth/qqLogin";
 import { startQQLogin, clearQQLogin } from "../../lib/auth/qqLogin";
+import { clearQqLoginBridge } from "../../lib/desktop/bridge";
 
 type SettingsPageProps = {
   profile: UserProfile;
@@ -37,6 +38,7 @@ export function SettingsPage({
   onQQLoginChange,
 }: SettingsPageProps) {
   const [serverBaseUrl, setServerBaseUrl] = useState(settings.serverBaseUrl);
+  const [serverAuthToken, setServerAuthToken] = useState(settings.serverAuthToken);
   const [defaultRoomName, setDefaultRoomName] = useState(settings.defaultRoomName);
   const [supernodeAddress, setSupernodeAddress] = useState(settings.supernodeAddress);
   const [autoConnectOnLaunch, setAutoConnectOnLaunch] = useState(settings.autoConnectOnLaunch);
@@ -44,10 +46,11 @@ export function SettingsPage({
 
   useEffect(() => {
     setServerBaseUrl(settings.serverBaseUrl);
+    setServerAuthToken(settings.serverAuthToken);
     setDefaultRoomName(settings.defaultRoomName);
     setSupernodeAddress(settings.supernodeAddress);
     setAutoConnectOnLaunch(settings.autoConnectOnLaunch);
-  }, [settings.serverBaseUrl, settings.defaultRoomName, settings.supernodeAddress, settings.autoConnectOnLaunch]);
+  }, [settings.serverBaseUrl, settings.serverAuthToken, settings.defaultRoomName, settings.supernodeAddress, settings.autoConnectOnLaunch]);
 
   const handleQQLogin = async () => {
     setQQLoginLoading(true);
@@ -65,8 +68,9 @@ export function SettingsPage({
     }
   };
 
-  const handleQQLogout = () => {
+  const handleQQLogout = async () => {
     clearQQLogin();
+    await clearQqLoginBridge();
     onQQLoginChange();
     toast.success("已退出QQ登录");
   };
@@ -74,6 +78,7 @@ export function SettingsPage({
   const handleSaveServerSettings = () => {
     onSaveSettings({
       serverBaseUrl,
+      serverAuthToken,
       defaultRoomName,
       supernodeAddress,
       autoConnectOnLaunch,
@@ -117,6 +122,9 @@ export function SettingsPage({
                     ? "使用系统用户名"
                     : "使用自定义用户名"}
               </p>
+              {qqLogin.isLoggedIn && qqLogin.qqUid ? (
+                <p className="mt-1 text-xs text-muted-foreground break-all">QQ UID: {qqLogin.qqUid}</p>
+              ) : null}
             </div>
           </div>
 
@@ -125,7 +133,7 @@ export function SettingsPage({
             <Button
               variant="outline"
               className="w-full"
-              onClick={handleQQLogout}
+              onClick={() => void handleQQLogout()}
             >
               <LogOut className="w-4 h-4 mr-2" />
               退出QQ登录
@@ -177,6 +185,29 @@ export function SettingsPage({
               onChange={(e) => setServerBaseUrl(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">默认连接本机服务，如需连接远程服务器请修改此项</p>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center gap-1">
+              <Label htmlFor="server-auth-token">访问令牌</Label>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <HelpCircle className="w-3.5 h-3.5 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>如果服务端启用了 VNETPLAY_AUTH_TOKEN，请在这里填写同一个令牌。</p>
+                  <p className="text-xs text-muted-foreground">留空表示不附带认证头。</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            <Input
+              id="server-auth-token"
+              type="password"
+              placeholder="例如：lan-demo-token"
+              value={serverAuthToken}
+              onChange={(e) => setServerAuthToken(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">桌面端心跳和前端接口都会复用这个令牌。</p>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

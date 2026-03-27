@@ -3,12 +3,13 @@ import { useSearchParams } from "react-router-dom";
 import { Toaster, toast } from "sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Header } from "./components/layout/Header";
-import { readSystemIdentityBridge } from "./lib/desktop/bridge";
+import { closeQqLoginWindowBridge, readQqLoginBridge, readSystemIdentityBridge } from "./lib/desktop/bridge";
 import { hasJoinedRoom, resolveConnectionContext, saveConnectionContext, type ConnectionContext } from "./lib/runtime/connectionContext";
 import { resolveAppSettings, saveAppSettings, type AppSettings } from "./lib/settings/appSettings";
 import { resolveUserProfile, type UserProfile } from "./lib/profile/userProfile";
 import {
   getStoredQQLogin,
+  QQ_LOGIN_PENDING_STORAGE_KEY,
   parseQQLoginSyncPayload,
   QQ_LOGIN_SYNC_CHANNEL,
   QQ_LOGIN_SYNC_STORAGE_KEY,
@@ -82,6 +83,21 @@ export function App() {
   const [qqLogin, setQQLogin] = useState<QQLoginState>(getStoredQQLogin());
   const lastQQLoginSyncRef = useRef("");
 
+  const isSameLoopbackOrigin = useCallback((origin: string) => {
+    try {
+      const current = new URL(window.location.origin);
+      const incoming = new URL(origin);
+      const hosts = new Set([current.hostname, incoming.hostname]);
+      return current.protocol === incoming.protocol
+        && current.port === incoming.port
+        && hosts.size === 2
+        && hosts.has("localhost")
+        && hosts.has("127.0.0.1");
+    } catch {
+      return false;
+    }
+  }, []);
+
   const refreshProfile = useCallback((options?: { silent?: boolean; syncId?: string; nickname?: string | null }) => {
     const storedLogin = getStoredQQLogin();
 
@@ -111,6 +127,12 @@ export function App() {
       return;
     }
 
+    try {
+      window.localStorage.removeItem(QQ_LOGIN_PENDING_STORAGE_KEY);
+    } catch {
+      // Ignore localStorage cleanup failures.
+    }
+
     const syncId = typeof payload?.syncId === "string"
       ? payload.syncId
       : `${storedLogin.qqUid ?? storedLogin.nickname ?? "qq"}-stored`;
@@ -120,7 +142,36 @@ export function App() {
       syncId,
       nickname: typeof payload?.nickname === "string" ? payload.nickname : storedLogin.nickname,
     });
+
+    void closeQqLoginWindowBridge();
   }, [refreshProfile]);
+
+  const syncQQLoginFromDesktopBridge = useCallback(async (options?: { silent?: boolean; syncId?: string }) => {
+    const bridgeLogin = await readQqLoginBridge();
+    if (!bridgeLogin?.nickname || !bridgeLogin.qqUid) {
+      return false;
+    }
+
+    const storedLogin = getStoredQQLogin();
+    if (!storedLogin.isLoggedIn || storedLogin.qqUid !== bridgeLogin.qqUid || storedLogin.nickname !== bridgeLogin.nickname) {
+      saveQQLogin({
+        success: true,
+        nickname: bridgeLogin.nickname,
+        avatar: bridgeLogin.avatar,
+        qqUid: bridgeLogin.qqUid,
+        syncId: options?.syncId ?? `bridge-${bridgeLogin.loggedAt || Date.now()}`,
+      });
+    }
+
+    handleQQLoginSync({
+      success: true,
+      nickname: bridgeLogin.nickname,
+      avatar: bridgeLogin.avatar,
+      qqUid: bridgeLogin.qqUid,
+      syncId: options?.syncId ?? `bridge-${bridgeLogin.loggedAt || Date.now()}`,
+    }, options);
+    return true;
+  }, [handleQQLoginSync]);
 
   useEffect(() => {
     readSystemIdentityBridge().then((identity) => {
@@ -128,7 +179,8 @@ export function App() {
     });
     setSettings(resolveAppSettings());
     setConnectionContext(resolveConnectionContext());
-  }, []);
+    void syncQQLoginFromDesktopBridge({ silent: true, syncId: `startup-${Date.now()}` });
+  }, [syncQQLoginFromDesktopBridge]);
 
   useEffect(() => {
     const refresh = searchParams.get("refresh");
@@ -151,7 +203,11 @@ export function App() {
     };
 
     const onMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin || event.data?.type !== "qq-login-success") {
+      if (event.data?.type !== "qq-login-success") {
+        return;
+      }
+
+      if (event.origin !== window.location.origin && !isSameLoopbackOrigin(event.origin)) {
         return;
       }
 
@@ -163,12 +219,30 @@ export function App() {
       const storedLogin = getStoredQQLogin();
       if (storedLogin.isLoggedIn && storedLogin.qqUid !== qqLogin.qqUid) {
         handleQQLoginSync({ syncId: `focus-${storedLogin.qqUid ?? Date.now()}` }, { silent: true });
+        return;
       }
+
+      void syncQQLoginFromDesktopBridge({ silent: true, syncId: `focus-bridge-${Date.now()}` });
     };
 
     window.addEventListener("storage", onStorage);
     window.addEventListener("message", onMessage);
     window.addEventListener("focus", onFocus);
+
+    const pendingSyncInterval = window.setInterval(() => {
+      const pendingRaw = window.localStorage.getItem(QQ_LOGIN_PENDING_STORAGE_KEY);
+      if (!pendingRaw) {
+        return;
+      }
+
+      const storedLogin = getStoredQQLogin();
+      if (storedLogin.isLoggedIn) {
+        handleQQLoginSync({ syncId: `pending-${storedLogin.qqUid ?? Date.now()}` }, { silent: true });
+        return;
+      }
+
+      void syncQQLoginFromDesktopBridge({ silent: true, syncId: `pending-bridge-${Date.now()}` });
+    }, 1200);
 
     let channel: BroadcastChannel | null = null;
     if (typeof BroadcastChannel !== "undefined") {
@@ -195,6 +269,7 @@ export function App() {
           window.removeEventListener("storage", onStorage);
           window.removeEventListener("message", onMessage);
           window.removeEventListener("focus", onFocus);
+          window.clearInterval(pendingSyncInterval);
           channel?.close();
           unlistenPromise.then((fn: () => void) => fn());
         };
@@ -205,9 +280,10 @@ export function App() {
       window.removeEventListener("storage", onStorage);
       window.removeEventListener("message", onMessage);
       window.removeEventListener("focus", onFocus);
+      window.clearInterval(pendingSyncInterval);
       channel?.close();
     };
-  }, [handleQQLoginSync, qqLogin.qqUid]);
+  }, [handleQQLoginSync, isSameLoopbackOrigin, qqLogin.qqUid, syncQQLoginFromDesktopBridge]);
 
   // 监听系统主题变化
   useEffect(() => {

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::RecentAction;
 use crate::nodes::NodeHeartbeat;
-use crate::rooms::{default_rooms, RoomSummary};
+use crate::rooms::RoomSummary;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PersistedState {
@@ -21,7 +21,7 @@ pub struct PersistedState {
 impl PersistedState {
     pub fn default_state() -> Self {
         Self {
-            rooms: default_rooms(),
+            rooms: Vec::new(),
             heartbeats: HashMap::new(),
             recent_action: RecentAction::idle(),
             recent_actions: vec![RecentAction::idle()],

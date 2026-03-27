@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 import { handleQQCallback, notifyQQLoginSuccess, saveQQLogin, type QQLoginResult } from "@/lib/auth/qqLogin";
+import { closeQqLoginWindowBridge, completeQqLoginBridge, saveQqLoginBridge } from "@/lib/desktop/bridge";
 
 type CallbackStatus = "loading" | "success" | "error";
 
@@ -21,6 +22,12 @@ async function getTauriWindowInfo(): Promise<{ label: string; window: any } | nu
       const label = await win.label();
       return { label, window: win };
     }
+
+    if (tauri?.window?.getCurrentWindow) {
+      const win = tauri.window.getCurrentWindow();
+      const label = await win.label();
+      return { label, window: win };
+    }
   } catch (error) {
     console.error("[QQ Callback] getTauriWindowInfo error:", error);
   }
@@ -28,6 +35,11 @@ async function getTauriWindowInfo(): Promise<{ label: string; window: any } | nu
 }
 
 async function closeLoginWindow() {
+  const bridgeClosed = await closeQqLoginWindowBridge();
+  if (bridgeClosed) {
+    return true;
+  }
+
   const windowInfo = await getTauriWindowInfo();
   if (windowInfo) {
     await windowInfo.window.close();
@@ -37,6 +49,19 @@ async function closeLoginWindow() {
   if (typeof window !== "undefined") {
     window.close();
     return window.closed;
+  }
+
+  return false;
+}
+
+async function closeLoginWindowWithRetry(retries = 3, delayMs = 250) {
+  for (let index = 0; index < retries; index += 1) {
+    const closed = await closeLoginWindow();
+    if (closed) {
+      return true;
+    }
+
+    await new Promise((resolve) => window.setTimeout(resolve, delayMs));
   }
 
   return false;
@@ -70,6 +95,16 @@ export function CallbackPage() {
       .then(async (result: QQLoginResult) => {
         if (result.success) {
           saveQQLogin(result);
+          const bridgePayload = {
+            nickname: result.nickname ?? "",
+            avatar: result.avatar ?? "",
+            qqUid: result.qqUid ?? "",
+            loggedAt: new Date().toISOString(),
+          };
+          const bridgeSynced = await completeQqLoginBridge(bridgePayload);
+          if (!bridgeSynced) {
+            await saveQqLoginBridge(bridgePayload);
+          }
           setNickname(result.nickname || "");
           setStatus("success");
           const syncPayload = notifyQQLoginSuccess(result);
@@ -83,10 +118,16 @@ export function CallbackPage() {
                 const tauri = window.__TAURI__;
 
                 if (tauri?.event?.emitTo) {
-                  await tauri.event.emitTo("main", "qq-login-success", {
-                    ...(syncPayload ?? result),
-                    success: true,
-                  });
+                  await Promise.allSettled([
+                    tauri.event.emitTo("main", "qq-login-success", {
+                      ...(syncPayload ?? result),
+                      success: true,
+                    }),
+                    tauri.event.emitTo("qq-login", "qq-login-success", {
+                      ...(syncPayload ?? result),
+                      success: true,
+                    }),
+                  ]);
                 }
 
                 if (tauri?.event?.emit) {
@@ -96,11 +137,11 @@ export function CallbackPage() {
                   });
                 }
 
-                await closeLoginWindow();
+                await closeLoginWindowWithRetry();
               } catch (err) {
                 console.error("[QQ Callback] Close window error:", err);
                 try {
-                  await closeLoginWindow();
+                  await closeLoginWindowWithRetry();
                 } catch (e) {
                   console.error("[QQ Callback] Force close failed:", e);
                 }
@@ -111,7 +152,7 @@ export function CallbackPage() {
 
           if (shouldReturnToMainAppWindow()) {
             setTimeout(async () => {
-              await closeLoginWindow();
+              await closeLoginWindowWithRetry();
             }, 1500);
             return;
           }

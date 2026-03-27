@@ -107,6 +107,21 @@ cargo run
 
 - `http://127.0.0.1:9080`
 
+如果要让局域网或公网其他设备访问，请在启动前设置：
+
+```powershell
+$env:VNETPLAY_BIND="0.0.0.0:9080"
+cargo run
+```
+
+如果要启用一个简单的访问令牌保护所有 `/api/*` 接口，可再额外设置：
+
+```powershell
+$env:VNETPLAY_AUTH_TOKEN="your-demo-token"
+```
+
+前端 `设置` 页中的“访问令牌”要和这里保持一致，桌面端心跳也会复用这个令牌。
+
 ### 启动 app
 
 ```powershell

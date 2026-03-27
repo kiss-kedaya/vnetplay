@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use chrono::Utc;
 
+use crate::config::AppConfig;
 use crate::nodes::NodeHeartbeat;
 use crate::rooms::RoomSummary;
 use crate::storage::{default_state_path, load_state, save_state, PersistedState};
@@ -71,11 +72,12 @@ pub struct AppState {
     pub recent_action: Arc<Mutex<RecentAction>>,
     pub recent_actions: Arc<Mutex<Vec<RecentAction>>>,
     pub profile: Arc<NetworkProfile>,
+    pub auth_token: Arc<Option<String>>,
     pub state_path: Arc<PathBuf>,
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new(config: &AppConfig) -> Self {
         let state_path = default_state_path();
         let persisted = load_state(&state_path);
 
@@ -89,6 +91,7 @@ impl AppState {
                 secret_masked: "********".to_string(),
                 supernode: "127.0.0.1:7777".to_string(),
             }),
+            auth_token: Arc::new(config.auth_token.clone()),
             state_path: Arc::new(state_path),
         }
     }

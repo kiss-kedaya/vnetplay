@@ -157,6 +157,22 @@ export function getDisplayAvatar(profile: UserProfile): string | null {
   return profile.qqAvatar || null;
 }
 
+export function getProfileIdentityLabel(profile: UserProfile): string {
+  if (profile.source === "qq" && profile.qqUid) {
+    return `QQ UID · ${profile.qqUid}`;
+  }
+
+  if (profile.machineLabel && profile.machineLabel !== "unknown") {
+    return profile.machineLabel;
+  }
+
+  if (profile.machineId && profile.machineId !== "unknown-machine") {
+    return `设备 ID · ${profile.machineId}`;
+  }
+
+  return "本机标识未识别";
+}
+
 export function isQQLoggedIn(): boolean {
   if (typeof window === "undefined") {
     return false;

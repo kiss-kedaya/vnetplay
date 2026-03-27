@@ -14,12 +14,24 @@ use models::AppState;
 #[tokio::main]
 async fn main() {
     let config = AppConfig::from_env();
-    let state = AppState::new();
+    let state = AppState::new(&config);
     let listener = tokio::net::TcpListener::bind(&config.bind_addr)
         .await
         .expect("failed to bind vnetplay server");
 
-    println!("vnetplay server listening on {}", config.bind_addr);
+    println!(
+        "vnetplay server listening on {} ({})",
+        config.bind_addr,
+        config.bind_scope_label()
+    );
+    println!(
+        "vnetplay auth token: {}",
+        if config.auth_token.is_some() {
+            "已启用"
+        } else {
+            "未启用"
+        }
+    );
 
     axum::serve(listener, build_router(state))
         .await

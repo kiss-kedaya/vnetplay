@@ -1,13 +1,17 @@
 use std::collections::HashMap;
 
 use axum::{
+    body::Body,
     extract::{Query, State},
-    http::StatusCode,
+    http::{header, Method, Request, StatusCode},
+    middleware::{self, Next},
+    response::{IntoResponse, Response},
     routing::{get, post},
     Json, Router,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use tower_http::cors::{Any, CorsLayer};
 
 use crate::models::{AppState, RecentAction};
 use crate::nodes::NodeHeartbeat;
@@ -56,6 +60,49 @@ fn format_heartbeat_overlay(heartbeat: Option<&NodeHeartbeat>) -> String {
         .filter(|value| !value.is_empty() && *value != "--")
         .unwrap_or("--")
         .to_string()
+}
+
+fn extract_bearer_token(request: &Request<Body>) -> Option<String> {
+    request
+        .headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|value| value.to_str().ok())
+        .and_then(|value| value.strip_prefix("Bearer "))
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn extract_api_token(request: &Request<Body>) -> Option<String> {
+    request
+        .headers()
+        .get("x-vnetplay-token")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .or_else(|| extract_bearer_token(request))
+}
+
+async fn require_api_token(
+    State(state): State<AppState>,
+    request: Request<Body>,
+    next: Next,
+) -> Response {
+    if request.method() == Method::OPTIONS {
+        return next.run(request).await;
+    }
+
+    let Some(expected) = state.auth_token.as_ref().as_ref() else {
+        return next.run(request).await;
+    };
+
+    let provided = extract_api_token(&request);
+    if provided.as_deref() != Some(expected.as_str()) {
+        return (StatusCode::UNAUTHORIZED, "missing or invalid api token").into_response();
+    }
+
+    next.run(request).await
 }
 
 #[derive(Serialize)]
@@ -122,9 +169,24 @@ struct RoomMemberDetail {
 }
 
 #[derive(Serialize)]
+struct ApiRoomSummary {
+    room_id: String,
+    game: String,
+    mode: String,
+    members: usize,
+    host: String,
+    host_id: String,
+    participants: Vec<String>,
+    participant_ids: Vec<String>,
+    created_at: String,
+    last_active_at: String,
+    requires_password: bool,
+}
+
+#[derive(Serialize)]
 struct RoomResponse {
     #[serde(flatten)]
-    room: RoomSummary,
+    room: ApiRoomSummary,
     member_details: Vec<RoomMemberDetail>,
 }
 
@@ -309,6 +371,20 @@ fn build_room_response(
     heartbeats: &HashMap<String, NodeHeartbeat>,
     recent_actions: &[RecentAction],
 ) -> RoomResponse {
+    let room_payload = ApiRoomSummary {
+        room_id: room.room_id.clone(),
+        game: room.game.clone(),
+        mode: room.mode.clone(),
+        members: room.members,
+        host: room.host.clone(),
+        host_id: room.host_id.clone(),
+        participants: room.participants.clone(),
+        participant_ids: room.participant_ids.clone(),
+        created_at: room.created_at.clone(),
+        last_active_at: room.last_active_at.clone(),
+        requires_password: room.requires_password,
+    };
+
     let member_count = room.participants.len().max(room.participant_ids.len());
     let member_details = (0..member_count)
         .map(|index| {
@@ -327,7 +403,10 @@ fn build_room_response(
         })
         .collect();
 
-    RoomResponse { room, member_details }
+    RoomResponse {
+        room: room_payload,
+        member_details,
+    }
 }
 
 async fn health() -> Json<HealthResponse> {
@@ -748,8 +827,12 @@ async fn node_heartbeat(
 }
 
 pub fn build_router(state: AppState) -> Router {
-    Router::new()
-        .route("/health", get(health))
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+        .allow_headers(Any);
+
+    let api_router = Router::new()
         .route("/api/dashboard/summary", get(dashboard_summary))
         .route("/api/rooms", get(rooms))
         .route("/api/rooms/create", post(create_room))
@@ -759,5 +842,14 @@ pub fn build_router(state: AppState) -> Router {
         .route("/api/network/actions", get(recent_actions))
         .route("/api/network/action", post(sync_recent_action))
         .route("/api/nodes/heartbeat", post(node_heartbeat))
+        .route_layer(middleware::from_fn_with_state(
+            state.clone(),
+            require_api_token,
+        ));
+
+    Router::new()
+        .route("/health", get(health))
+        .merge(api_router)
+        .layer(cors)
         .with_state(state)
 }

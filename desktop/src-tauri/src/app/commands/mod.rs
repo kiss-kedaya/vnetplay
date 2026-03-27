@@ -100,6 +100,7 @@ pub fn start_network(state: &mut DesktopState, payload: StartNetworkRequest) -> 
     state.current_community = payload.community.clone();
     state.current_supernode = payload.supernode.clone();
     state.current_server_base_url = payload.server_base_url.trim().to_string();
+    state.current_server_auth_token = payload.server_auth_token.trim().to_string();
     state.current_machine_id = current_machine_id();
     let outcome = start_edge(
         &state.active_room,

@@ -17,6 +17,7 @@ export type QQLoginState = {
 const STORAGE_KEY = "vnetplay.qq-login";
 export const QQ_LOGIN_SYNC_STORAGE_KEY = "vnetplay.qq-login.sync";
 export const QQ_LOGIN_SYNC_CHANNEL = "vnetplay.qq-login.channel";
+export const QQ_LOGIN_PENDING_STORAGE_KEY = "vnetplay.qq-login.pending";
 
 type QQLoginRecord = {
   nickname: string;
@@ -99,13 +100,9 @@ function getRedirectUri(): string {
     return "";
   }
 
-  let host = hostname;
-  if (hostname === "localhost") {
-    host = "127.0.0.1";
-  }
-
+  const normalizedHost = hostname === "localhost" ? "127.0.0.1" : hostname;
   const portSuffix = port ? `:${port}` : "";
-  return `${protocol}//${host}${portSuffix}/callback`;
+  return `${protocol}//${normalizedHost}${portSuffix}/callback`;
 }
 
 function readStoredQQLoginRecord(): QQLoginRecord | null {
@@ -186,6 +183,7 @@ export function notifyQQLoginSuccess(result: QQLoginResult): QQLoginSyncPayload 
 
   try {
     localStorage.setItem(QQ_LOGIN_SYNC_STORAGE_KEY, JSON.stringify(payload));
+    localStorage.removeItem(QQ_LOGIN_PENDING_STORAGE_KEY);
   } catch {
     // Ignore storage sync failures and continue with best-effort messaging.
   }
@@ -202,7 +200,7 @@ export function notifyQQLoginSuccess(result: QQLoginResult): QQLoginSyncPayload 
 
   if (typeof window.opener !== "undefined" && window.opener && !window.opener.closed) {
     try {
-      window.opener.postMessage({ type: "qq-login-success", payload }, window.location.origin);
+      window.opener.postMessage({ type: "qq-login-success", payload }, "*");
     } catch {
       // Ignore opener messaging failures.
     }
@@ -297,6 +295,7 @@ export function saveQQLogin(result: QQLoginResult): void {
   };
 
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  localStorage.removeItem(QQ_LOGIN_PENDING_STORAGE_KEY);
 }
 
 export function clearQQLogin(): void {
@@ -304,10 +303,12 @@ export function clearQQLogin(): void {
     return;
   }
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(QQ_LOGIN_PENDING_STORAGE_KEY);
 }
 
 export async function startQQLogin(): Promise<{ success: boolean; error?: string }> {
   sessionStorage.setItem("vnetplay.qq-login-return-page", window.location.pathname);
+  localStorage.setItem(QQ_LOGIN_PENDING_STORAGE_KEY, JSON.stringify({ startedAt: Date.now() }));
 
   const redirectUri = getRedirectUri();
   if (!redirectUri) {
@@ -332,6 +333,11 @@ export async function startQQLogin(): Promise<{ success: boolean; error?: string
     });
 
     if (!response.ok) {
+      const opened = await openExternalUrl(apiUrl);
+      if (opened) {
+        return { success: true };
+      }
+
       return { success: false, error: `获取授权链接失败 (${response.status})` };
     }
 
@@ -348,6 +354,11 @@ export async function startQQLogin(): Promise<{ success: boolean; error?: string
     return { success: false, error: String(data.msg ?? "获取授权链接失败") };
   } catch (error) {
     console.error("[QQ Login] Error fetching auth URL:", error);
+    const opened = await openExternalUrl(apiUrl);
+    if (opened) {
+      return { success: true };
+    }
+
     return { success: false, error: "网络错误" };
   }
 }

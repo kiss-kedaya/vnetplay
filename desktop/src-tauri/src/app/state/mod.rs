@@ -1,4 +1,14 @@
+use serde::{Deserialize, Serialize};
+
 use crate::app::services::system_identity::current_machine_id;
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct QqLoginState {
+    pub nickname: String,
+    pub avatar: String,
+    pub qq_uid: String,
+    pub logged_at: String,
+}
 
 #[derive(Clone, Debug)]
 pub struct DesktopState {
@@ -7,6 +17,7 @@ pub struct DesktopState {
     pub current_community: String,
     pub current_supernode: String,
     pub current_server_base_url: String,
+    pub current_server_auth_token: String,
     pub current_machine_id: String,
     pub heartbeat_generation: u64,
     pub last_command: String,
@@ -14,6 +25,7 @@ pub struct DesktopState {
     pub runtime_started_at: String,
     pub last_started_at: String,
     pub last_stopped_at: String,
+    pub qq_login: Option<QqLoginState>,
 }
 
 impl Default for DesktopState {
@@ -24,6 +36,7 @@ impl Default for DesktopState {
             current_community: "vnetplay-room".to_string(),
             current_supernode: "127.0.0.1:7777".to_string(),
             current_server_base_url: "http://127.0.0.1:9080".to_string(),
+            current_server_auth_token: "".to_string(),
             current_machine_id: current_machine_id(),
             heartbeat_generation: 0,
             last_command: "idle".to_string(),
@@ -31,6 +44,7 @@ impl Default for DesktopState {
             runtime_started_at: "--".to_string(),
             last_started_at: "--".to_string(),
             last_stopped_at: "--".to_string(),
+            qq_login: None,
         }
     }
 }

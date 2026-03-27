@@ -28,12 +28,20 @@ export type DesktopIdentityResult = {
   machineLabel: string;
 };
 
+export type QqLoginBridgeState = {
+  nickname: string;
+  avatar: string;
+  qqUid: string;
+  loggedAt: string;
+};
+
 export type StartNetworkPayload = {
   roomId: string;
   username: string;
   community: string;
   supernode: string;
   serverBaseUrl: string;
+  serverAuthToken: string;
 };
 
 export const DESKTOP_BRIDGE_UNAVAILABLE_CODE = "desktop-runtime-unavailable";
@@ -50,9 +58,18 @@ type TauriWebviewWindowInstance = {
   label: () => Promise<string>;
 };
 
+type TauriWindowInstance = {
+  close: () => Promise<void>;
+  label: () => Promise<string>;
+};
+
 type TauriWebviewWindowApi = {
   WebviewWindow?: new (label: string, options: Record<string, unknown>) => TauriWebviewWindowInstance;
   getCurrentWebviewWindow?: () => TauriWebviewWindowInstance;
+};
+
+type TauriWindowApi = {
+  getCurrentWindow?: () => TauriWindowInstance;
 };
 
 declare global {
@@ -66,6 +83,7 @@ declare global {
         open?: (url: string) => Promise<void>;
       };
       webviewWindow?: TauriWebviewWindowApi;
+      window?: TauriWindowApi;
     };
   }
 }
@@ -111,6 +129,19 @@ async function invokeDesktop(command: string, payload?: Record<string, unknown>)
   }
 }
 
+async function invokeOptional<T>(command: string, payload?: Record<string, unknown>): Promise<T | null> {
+  const invoke = await waitForInvoke();
+  if (!invoke) {
+    return null;
+  }
+
+  try {
+    return await invoke<T>(command, payload);
+  } catch {
+    return null;
+  }
+}
+
 export async function readSystemIdentityBridge(): Promise<DesktopIdentityResult> {
   const invoke = await waitForInvoke();
 
@@ -145,10 +176,59 @@ export function startNetworkBridge(payload: StartNetworkPayload): Promise<Deskto
       community: payload.community,
       supernode: payload.supernode,
       serverBaseUrl: payload.serverBaseUrl,
+      serverAuthToken: payload.serverAuthToken,
     },
   });
 }
 
 export function stopNetworkBridge(): Promise<DesktopCommandResult> {
   return invokeDesktop("stop_network_command");
+}
+
+export async function closeQqLoginWindowBridge(): Promise<boolean> {
+  const result = await invokeOptional<boolean>("close_qq_login_window_command");
+  return result ?? false;
+}
+
+export async function saveQqLoginBridge(payload: QqLoginBridgeState): Promise<boolean> {
+  const result = await invokeOptional<boolean>("save_qq_login_command", {
+    payload: {
+      nickname: payload.nickname,
+      avatar: payload.avatar,
+      qqUid: payload.qqUid,
+      loggedAt: payload.loggedAt,
+    },
+  });
+  return result ?? false;
+}
+
+export async function completeQqLoginBridge(payload: QqLoginBridgeState): Promise<boolean> {
+  const result = await invokeOptional<boolean>("complete_qq_login_command", {
+    payload: {
+      nickname: payload.nickname,
+      avatar: payload.avatar,
+      qqUid: payload.qqUid,
+      loggedAt: payload.loggedAt,
+    },
+  });
+  return result ?? false;
+}
+
+export async function readQqLoginBridge(): Promise<QqLoginBridgeState | null> {
+  const result = await invokeOptional<Record<string, unknown>>("read_qq_login_command");
+  if (!result) {
+    return null;
+  }
+
+  return {
+    nickname: String(result.nickname ?? ""),
+    avatar: String(result.avatar ?? ""),
+    qqUid: String(result.qq_uid ?? result.qqUid ?? ""),
+    loggedAt: String(result.logged_at ?? result.loggedAt ?? ""),
+  };
+}
+
+export async function clearQqLoginBridge(): Promise<boolean> {
+  const result = await invokeOptional<boolean>("clear_qq_login_command");
+  return result ?? false;
 }

@@ -147,34 +147,3 @@ impl RoomSummary {
             .is_some_and(|value| !value.trim().is_empty());
     }
 }
-
-pub fn default_rooms() -> Vec<RoomSummary> {
-    let mut first = RoomSummary::new(
-        "sts2-night-run".to_string(),
-        "Slay the Spire 2".to_string(),
-        "LAN Overlay".to_string(),
-        "kedaya-main".to_string(),
-        "machine-main".to_string(),
-    );
-    first.ensure_participant("kedaya-main", "machine-main");
-    first.ensure_participant("kedaya-vps", "machine-vps");
-    first.ensure_participant("relay-preferred", "machine-relay");
-    first.set_password(Some("123456".to_string()));
-    first.normalize();
-
-    let mut second = RoomSummary::new(
-        "mc-build-world".to_string(),
-        "Minecraft".to_string(),
-        "Overlay + Direct Join".to_string(),
-        "kedaya-vps".to_string(),
-        "machine-vps".to_string(),
-    );
-    second.ensure_participant("kedaya-vps", "machine-vps");
-    second.ensure_participant("kedaya-main", "machine-main");
-    second.ensure_participant("builder-01", "machine-builder-01");
-    second.ensure_participant("builder-02", "machine-builder-02");
-    second.ensure_participant("builder-03", "machine-builder-03");
-    second.normalize();
-
-    vec![first, second]
-}

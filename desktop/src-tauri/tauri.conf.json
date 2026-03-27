@@ -11,6 +11,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
+        "label": "main",
         "title": "VNetPlay",
         "width": 1280,
         "height": 820,

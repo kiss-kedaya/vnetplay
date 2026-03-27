@@ -258,6 +258,7 @@ export function NetworkPage({ profile, settings, connectionContext, onUpdateConn
       community: settings.defaultCommunity,
       supernode: settings.supernodeAddress,
       serverBaseUrl: targetServerBaseUrl,
+      serverAuthToken: settings.serverAuthToken,
     });
 
     const detail = trigger === "auto" ? `自动：${result.detail}` : trigger === "resume" ? `继续：${result.detail}` : result.detail;

@@ -32,7 +32,7 @@ import {
   type InspectSnapshot,
 } from "../../lib/desktop/bridge";
 import { errorDetail } from "../../lib/errors";
-import type { UserProfile } from "../../lib/profile/userProfile";
+import { getProfileIdentityLabel, type UserProfile } from "../../lib/profile/userProfile";
 import { hasJoinedRoom, type ConnectionContext } from "../../lib/runtime/connectionContext";
 import { useLiveRefresh } from "../../lib/runtime/useLiveRefresh";
 import { resolveRuntimeEvents, type RuntimeEvent } from "../../lib/runtime/runtimeEvents";
@@ -82,6 +82,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
     () => networkStatus ? summarizeNetworkQuality(networkStatus) : null,
     [networkStatus],
   );
+  const profileIdentityLabel = useMemo(() => getProfileIdentityLabel(profile), [profile]);
 
   const diagnostics = useMemo(
     () => buildDiagnosticsSummary({
@@ -184,7 +185,7 @@ export function DiagnosticsPage({ profile, settings, connectionContext }: Diagno
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill tone={liveTone} text={liveLabel} />
-          <span className="text-sm text-muted-foreground">刷新: {refreshedAt} · {profile.username} · {profile.machineLabel}</span>
+          <span className="text-sm text-muted-foreground">刷新: {refreshedAt} · {profile.username} · {profileIdentityLabel}</span>
         </div>
         <Button
           variant="outline"

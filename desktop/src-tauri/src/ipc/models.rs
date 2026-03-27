@@ -40,4 +40,14 @@ pub struct StartNetworkRequest {
     pub community: String,
     pub supernode: String,
     pub server_base_url: String,
+    pub server_auth_token: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QqLoginBridgePayload {
+    pub nickname: String,
+    pub avatar: String,
+    pub qq_uid: String,
+    pub logged_at: String,
 }
